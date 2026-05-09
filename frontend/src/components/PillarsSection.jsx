@@ -15,7 +15,10 @@ const pillars = [
 
 function PillarsSection() {
   return (
-    <section className="relative z-10 px-6 py-32">
+    <section 
+    id="garage"
+    className="relative z-10 px-6 py-32"
+    >
       <div className="mx-auto max-w-6xl">
         <p className="text-center text-[10px] uppercase tracking-[0.5em] text-zinc-600">
           Core Pillars

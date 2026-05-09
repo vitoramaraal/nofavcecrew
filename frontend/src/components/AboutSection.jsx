@@ -1,6 +1,9 @@
 function AboutSection() {
   return (
-    <section className="relative z-10 flex min-h-screen items-center justify-center px-6 py-32">
+    <section 
+    id="about"
+    className="relative z-10 flex min-h-screen items-center justify-center px-6 py-32"
+    >
       <div className="max-w-4xl text-center">
         <p className="text-[10px] uppercase tracking-[0.5em] text-zinc-600">
           NoFvce Manifest

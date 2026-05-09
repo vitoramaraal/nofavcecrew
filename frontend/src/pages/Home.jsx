@@ -1,9 +1,13 @@
 import AboutSection from '../components/AboutSection'
 import Background from '../components/Background'
+import EventsSection from '../components/EventsSection'
+import Footer from '../components/Footer'
+import JoinSection from '../components/JoinSection'
 import Logo from '../components/Logo'
+import MembersSection from '../components/MembersSection'
 import Navbar from '../components/Navbar'
-import PrimaryButton from '../components/PrimaryButton'
 import PillarsSection from '../components/PillarsSection'
+import PrimaryButton from '../components/PrimaryButton'
 
 function Home() {
   return (
@@ -12,7 +16,10 @@ function Home() {
 
       <Navbar />
 
-      <section className="relative flex h-screen items-center justify-center">
+      <section
+        id="home"
+        className="relative flex h-screen items-center justify-center"
+      >
         <div className="-mt-10 flex flex-col items-center justify-center px-6 text-center">
           <Logo />
           <PrimaryButton>Enter the Crew</PrimaryButton>
@@ -21,6 +28,10 @@ function Home() {
 
       <AboutSection />
       <PillarsSection />
+      <EventsSection />
+      <MembersSection />
+      <JoinSection />
+      <Footer />
     </main>
   )
 }
