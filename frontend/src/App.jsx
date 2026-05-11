@@ -9,6 +9,7 @@ import Garage from './pages/members/Garage'
 import Events from './pages/members/Events'
 import Drops from './pages/members/Drops'
 import Profile from './pages/members/Profile'
+import Admin from './pages/Admin'
 
 import SplashScreen from './components/members/SplashScreen'
 
@@ -75,7 +76,9 @@ function App() {
   if (path === '/members/profile') {
     return <Profile />
   }
-
+if (path === '/admin') {
+  return <Admin />
+}
   return <Home />
 }
 

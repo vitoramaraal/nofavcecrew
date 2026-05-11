@@ -6,12 +6,15 @@ function SplashScreen() {
 
         <div className="relative flex h-32 w-32 items-center justify-center rounded-full border border-white/10 bg-white/[0.03]">
           <span className="text-2xl font-black uppercase tracking-[0.4em]">
-            N
+            <img
+                src="/public/icons/nofvce-icon.png"
+                size="512x512"
+            />
           </span>
         </div>
 
         <p className="mt-8 text-xs uppercase tracking-[0.6em] text-white/40">
-          NOFVCE CREW
+          {/* NOFVCE CREW */}
         </p>
       </div>
     </main>
