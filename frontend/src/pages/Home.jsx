@@ -1,37 +1,39 @@
-import AboutSection from '../components/AboutSection'
 import Background from '../components/Background'
-import EventsSection from '../components/EventsSection'
-import Footer from '../components/Footer'
-import JoinSection from '../components/JoinSection'
 import Logo from '../components/Logo'
-import MembersSection from '../components/MembersSection'
-import Navbar from '../components/Navbar'
-import PillarsSection from '../components/PillarsSection'
-import PrimaryButton from '../components/PrimaryButton'
 
 function Home() {
   return (
-    <main className="relative bg-black text-white overflow-hidden">
+    <main className="relative h-screen overflow-hidden bg-black text-white">
       <Background />
 
-      <Navbar />
+      <header className="absolute left-0 top-0 z-20 flex w-full items-center justify-between border-b border-white/5 px-6 py-4">
+        <a
+          href="/"
+          className="text-[10px] font-bold uppercase tracking-[0.45em] text-white/35 transition hover:text-white"
+        >
+          NOFVCE
+        </a>
 
-      <section
-        id="home"
-        className="relative flex h-screen items-center justify-center"
-      >
-        <div className="-mt-10 flex flex-col items-center justify-center px-6 text-center">
+        <a
+          href="/members/login"
+          className="text-[10px] uppercase tracking-[0.35em] text-white/35 transition hover:text-white"
+        >
+          Members
+        </a>
+      </header>
+
+      <section className="relative z-10 flex h-screen items-center justify-center px-6">
+        <div className="-mt-8 flex scale-[0.82] flex-col items-center text-center">
           <Logo />
-          <PrimaryButton>Enter the Crew</PrimaryButton>
+
+          <a
+            href="/apply"
+            className="mt-5 inline-flex items-center justify-center rounded-full border border-white/10 bg-white/10 px-10 py-3.5 text-[10px] font-black uppercase tracking-[0.32em] text-white/35 backdrop-blur-xl transition duration-300 hover:border-white/20 hover:bg-white/15 hover:text-white"
+          >
+            Enter the Crew
+          </a>
         </div>
       </section>
-
-      <AboutSection />
-      <PillarsSection />
-      <EventsSection />
-      <MembersSection />
-      <JoinSection />
-      <Footer />
     </main>
   )
 }
