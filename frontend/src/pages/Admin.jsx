@@ -6,6 +6,7 @@ function Admin() {
   const [password, setPassword] = useState('')
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [applications, setApplications] = useState([])
+  const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -33,23 +34,36 @@ function Admin() {
     setIsUnlocked(true)
   }
 
-  async function loadApplications() {
+  async function loadData() {
     setLoading(true)
     setError('')
 
-    const { data, error: applicationsError } = await supabase
+    const { data: applicationsData, error: applicationsError } = await supabase
       .from('applications')
       .select('*')
       .order('created_at', { ascending: false })
 
     if (applicationsError) {
       console.error(applicationsError)
-      setError('Erro ao carregar aplicações.')
+      setError('Erro ao carregar candidaturas.')
       setLoading(false)
       return
     }
 
-    setApplications(data || [])
+    const { data: membersData, error: membersError } = await supabase
+      .from('members')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (membersError) {
+      console.error(membersError)
+      setError('Erro ao carregar membros.')
+      setLoading(false)
+      return
+    }
+
+    setApplications(applicationsData || [])
+    setMembers(membersData || [])
     setLoading(false)
   }
 
@@ -57,6 +71,29 @@ function Admin() {
     setLoading(true)
     setError('')
     setSuccess('')
+
+    const existingMember = members.find(
+      (member) => member.application_id === application.id,
+    )
+
+    if (existingMember) {
+      const { error: updateError } = await supabase
+        .from('applications')
+        .update({ status: 'approved' })
+        .eq('id', application.id)
+
+      if (updateError) {
+        console.error(updateError)
+        setError('Erro ao atualizar candidatura.')
+        setLoading(false)
+        return
+      }
+
+      setSuccess('Essa candidatura já possui membro criado.')
+      await loadData()
+      setLoading(false)
+      return
+    }
 
     const memberNumber = `NFV-${String(Date.now()).slice(-6)}`
 
@@ -90,13 +127,13 @@ function Admin() {
 
     if (updateError) {
       console.error(updateError)
-      setError('Membro criado, mas erro ao atualizar aplicação.')
+      setError('Membro criado, mas erro ao atualizar candidatura.')
       setLoading(false)
       return
     }
 
-    setSuccess('Aplicação aprovada e membro criado.')
-    await loadApplications()
+    setSuccess('Candidatura aprovada e membro criado.')
+    await loadData()
     setLoading(false)
   }
 
@@ -105,6 +142,24 @@ function Admin() {
     setError('')
     setSuccess('')
 
+    const relatedMember = members.find(
+      (member) => member.application_id === application.id,
+    )
+
+    if (relatedMember) {
+      const { error: memberDeleteError } = await supabase
+        .from('members')
+        .delete()
+        .eq('id', relatedMember.id)
+
+      if (memberDeleteError) {
+        console.error(memberDeleteError)
+        setError('Erro ao remover membro relacionado.')
+        setLoading(false)
+        return
+      }
+    }
+
     const { error: updateError } = await supabase
       .from('applications')
       .update({ status: 'rejected' })
@@ -112,19 +167,100 @@ function Admin() {
 
     if (updateError) {
       console.error(updateError)
-      setError('Erro ao rejeitar aplicação.')
+      setError('Erro ao rejeitar candidatura.')
       setLoading(false)
       return
     }
 
-    setSuccess('Aplicação rejeitada.')
-    await loadApplications()
+    setSuccess('Candidatura rejeitada e membro relacionado removido.')
+    await loadData()
+    setLoading(false)
+  }
+
+  async function deleteApplication(application) {
+    const confirmed = window.confirm(
+      `Deseja apagar a candidatura de ${application.full_name}?`,
+    )
+
+    if (!confirmed) return
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    const relatedMember = members.find(
+      (member) => member.application_id === application.id,
+    )
+
+    if (relatedMember) {
+      const { error: memberDeleteError } = await supabase
+        .from('members')
+        .delete()
+        .eq('id', relatedMember.id)
+
+      if (memberDeleteError) {
+        console.error(memberDeleteError)
+        setError('Erro ao apagar membro relacionado.')
+        setLoading(false)
+        return
+      }
+    }
+
+    const { error: applicationDeleteError } = await supabase
+      .from('applications')
+      .delete()
+      .eq('id', application.id)
+
+    if (applicationDeleteError) {
+      console.error(applicationDeleteError)
+      setError('Erro ao apagar candidatura.')
+      setLoading(false)
+      return
+    }
+
+    setSuccess('Candidatura apagada com sucesso.')
+    await loadData()
+    setLoading(false)
+  }
+
+  async function deleteMember(member) {
+    const confirmed = window.confirm(
+      `Deseja apagar o membro ${member.full_name}?`,
+    )
+
+    if (!confirmed) return
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    const { error: memberDeleteError } = await supabase
+      .from('members')
+      .delete()
+      .eq('id', member.id)
+
+    if (memberDeleteError) {
+      console.error(memberDeleteError)
+      setError('Erro ao apagar membro.')
+      setLoading(false)
+      return
+    }
+
+    if (member.application_id) {
+      await supabase
+        .from('applications')
+        .update({ status: 'rejected' })
+        .eq('id', member.application_id)
+    }
+
+    setSuccess('Membro apagado com sucesso.')
+    await loadData()
     setLoading(false)
   }
 
   useEffect(() => {
     if (isUnlocked) {
-      loadApplications()
+      loadData()
     }
   }, [isUnlocked])
 
@@ -188,12 +324,14 @@ function Admin() {
           NOFVCE
         </a>
 
-        <a
-          href="/app"
-          className="text-[10px] uppercase tracking-[0.35em] text-white/35 transition hover:text-white"
+        <button
+          type="button"
+          onClick={loadData}
+          disabled={loading}
+          className="text-[10px] uppercase tracking-[0.35em] text-white/35 transition hover:text-white disabled:opacity-40"
         >
-          App
-        </a>
+          {loading ? 'Syncing' : 'Sync'}
+        </button>
       </header>
 
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-10">
@@ -205,14 +343,11 @@ function Admin() {
           Applications
         </h1>
 
-        <p className="mt-5 max-w-xl text-sm leading-6 text-white/45">
-          Área administrativa para análise de novos membros da NoFvce Crew.
-        </p>
-
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
+        <div className="mt-8 grid gap-4 md:grid-cols-4">
           <StatCard label="Pendentes" value={pending} />
           <StatCard label="Aprovadas" value={approved} />
           <StatCard label="Rejeitadas" value={rejected} />
+          <StatCard label="Membros" value={members.length} />
         </div>
 
         {success && (
@@ -227,21 +362,14 @@ function Admin() {
           </div>
         )}
 
-        <div className="mt-8 flex justify-end">
-          <button
-            type="button"
-            onClick={loadApplications}
-            disabled={loading}
-            className="rounded-full border border-white/10 bg-white/10 px-5 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-white/45 transition hover:bg-white hover:text-black disabled:opacity-40"
-          >
-            {loading ? 'Carregando...' : 'Atualizar'}
-          </button>
-        </div>
+        <h2 className="mt-10 text-2xl font-black uppercase">
+          Candidaturas
+        </h2>
 
         <div className="mt-6 grid gap-5">
           {applications.length === 0 && !loading && (
             <div className="rounded-[2rem] border border-white/5 bg-zinc-900/60 p-6 text-sm text-white/40">
-              Nenhuma aplicação encontrada.
+              Nenhuma candidatura encontrada.
             </div>
           )}
 
@@ -326,6 +454,67 @@ function Admin() {
                     className="rounded-full border border-white/10 bg-black/40 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-white/35 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
                   >
                     Rejeitar
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => deleteApplication(item)}
+                    disabled={loading}
+                    className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    Apagar
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <h2 className="mt-12 text-2xl font-black uppercase">
+          Membros
+        </h2>
+
+        <div className="mt-6 grid gap-5 md:grid-cols-2">
+          {members.length === 0 && !loading && (
+            <div className="rounded-[2rem] border border-white/5 bg-zinc-900/60 p-6 text-sm text-white/40">
+              Nenhum membro encontrado.
+            </div>
+          )}
+
+          {members.map((member) => (
+            <article
+              key={member.id}
+              className="overflow-hidden rounded-[2rem] border border-white/5 bg-zinc-900/60 backdrop-blur-xl"
+            >
+              {member.image_url && (
+                <img
+                  src={member.image_url}
+                  alt={member.car_model}
+                  className="h-56 w-full object-cover"
+                />
+              )}
+
+              <div className="p-5">
+                <p className="text-[10px] uppercase tracking-[0.35em] text-white/25">
+                  {member.member_number || 'NOFVCE'}
+                </p>
+
+                <h3 className="mt-2 text-2xl font-black uppercase">
+                  {member.full_name}
+                </h3>
+
+                <p className="mt-2 text-sm text-white/40">
+                  {member.car_model || '-'}
+                </p>
+
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => deleteMember(member)}
+                    disabled={loading}
+                    className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    Apagar membro
                   </button>
                 </div>
               </div>
