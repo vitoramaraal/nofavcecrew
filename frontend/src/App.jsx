@@ -76,9 +76,11 @@ function App() {
   if (path === '/members/profile') {
     return <Profile />
   }
-if (path === '/admin') {
-  return <Admin />
-}
+
+  if (path === '/admin') {
+    return <Admin />
+  }
+
   return <Home />
 }
 

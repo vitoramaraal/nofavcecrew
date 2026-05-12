@@ -95,7 +95,7 @@ function Admin() {
       return
     }
 
-    const memberNumber = `NFV-${String(Date.now()).slice(-6)}`
+    const memberNumber = `NFC-${String(Date.now()).slice(-6)}`
 
     const { error: memberError } = await supabase
       .from('members')
@@ -108,6 +108,8 @@ function Admin() {
           car_model: application.car_model,
           car_setup: application.car_setup,
           image_url: application.image_url,
+          member_photo_url: application.member_photo_url,
+          member_photo_path: application.member_photo_path,
           status: 'active',
           member_number: memberNumber,
         },

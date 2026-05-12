@@ -3,18 +3,19 @@ import Background from '../components/Background'
 import { supabase } from '../lib/supabase'
 
 function Apply() {
-  const [preview, setPreview] = useState(null)
+  const [carPreview, setCarPreview] = useState(null)
+  const [memberPreview, setMemberPreview] = useState(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [selectedFile, setSelectedFile] = useState(null)
+  const [carFile, setCarFile] = useState(null)
+  const [memberFile, setMemberFile] = useState(null)
 
   const [formData, setFormData] = useState({
     full_name: '',
     instagram: '',
     whatsapp: '',
     car_model: '',
-    car_setup: '',
     message: '',
   })
 
@@ -25,57 +26,73 @@ function Apply() {
     })
   }
 
-  function handleImageChange(event) {
+  function validateImage(file) {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+    const maxSize = 5 * 1024 * 1024
+
+    if (!allowedTypes.includes(file.type)) {
+      return 'Formato inválido. Use JPG, PNG ou WEBP.'
+    }
+
+    if (file.size > maxSize) {
+      return 'A imagem deve ter no máximo 5MB.'
+    }
+
+    return ''
+  }
+
+  function handleMemberImageChange(event) {
     const file = event.target.files[0]
 
     if (!file) {
-      setPreview(null)
-      setSelectedFile(null)
+      setMemberPreview(null)
+      setMemberFile(null)
       setError('')
       return
     }
 
-    const allowedTypes = [
-      'image/jpeg',
-      'image/png',
-      'image/webp',
-    ]
+    const imageError = validateImage(file)
 
-    if (!allowedTypes.includes(file.type)) {
-      setError('Formato inválido. Use JPG, PNG ou WEBP.')
-      setPreview(null)
-      setSelectedFile(null)
-      return
-    }
-
-    const maxSize = 5 * 1024 * 1024
-
-    if (file.size > maxSize) {
-      setError('A imagem deve ter no máximo 5MB.')
-      setPreview(null)
-      setSelectedFile(null)
+    if (imageError) {
+      setError(imageError)
+      setMemberPreview(null)
+      setMemberFile(null)
       return
     }
 
     setError('')
-    setSelectedFile(file)
-    setPreview(URL.createObjectURL(file))
+    setMemberFile(file)
+    setMemberPreview(URL.createObjectURL(file))
   }
 
-  async function uploadApplicationPhoto(file) {
+  function handleCarImageChange(event) {
+    const file = event.target.files[0]
+
     if (!file) {
-      return {
-        imageUrl: null,
-        imagePath: null,
-      }
+      setCarPreview(null)
+      setCarFile(null)
+      setError('')
+      return
     }
 
+    const imageError = validateImage(file)
+
+    if (imageError) {
+      setError(imageError)
+      setCarPreview(null)
+      setCarFile(null)
+      return
+    }
+
+    setError('')
+    setCarFile(file)
+    setCarPreview(URL.createObjectURL(file))
+  }
+
+  async function uploadPhoto(file, folder) {
     const fileExtension = file.name.split('.').pop()
-
-    const fileName =
-      `application-${Date.now()}.${fileExtension}`
-
-    const filePath = `applications/${fileName}`
+    const fileName = `${folder}-${Date.now()}.${fileExtension}`
+    const filePath = `${folder}/${fileName}`
 
     const { error: uploadError } = await supabase.storage
       .from('application-photos')
@@ -85,7 +102,6 @@ function Apply() {
       })
 
     if (uploadError) {
-      console.error(uploadError)
       throw uploadError
     }
 
@@ -94,29 +110,24 @@ function Apply() {
       .getPublicUrl(filePath)
 
     return {
-      imageUrl: data.publicUrl,
-      imagePath: filePath,
+      url: data.publicUrl,
+      path: filePath,
     }
   }
 
   async function sendEmailNotification(data) {
     const emailFormData = new FormData()
 
-    emailFormData.append(
-      '_subject',
-      'Nova inscrição - NoFvce Crew',
-    )
-
+    emailFormData.append('_subject', 'Nova inscrição - NoFvce Crew')
     emailFormData.append('_captcha', 'false')
     emailFormData.append('_template', 'table')
-
     emailFormData.append('Nome', data.full_name)
     emailFormData.append('Instagram', data.instagram)
     emailFormData.append('WhatsApp', data.whatsapp)
     emailFormData.append('Carro', data.car_model)
-    emailFormData.append('Setup', data.car_setup || '-')
     emailFormData.append('Mensagem', data.message || '-')
-    emailFormData.append('Foto', data.image_url || '-')
+    emailFormData.append('Foto do membro', data.member_photo_url || '-')
+    emailFormData.append('Foto do carro', data.image_url || '-')
 
     try {
       await fetch(
@@ -141,38 +152,37 @@ function Apply() {
     setSuccess(false)
 
     try {
-      const {
-        full_name,
-        instagram,
-        whatsapp,
-        car_model,
-      } = formData
+      const { full_name, instagram, whatsapp, car_model } = formData
 
-      if (
-        !full_name ||
-        !instagram ||
-        !whatsapp ||
-        !car_model
-      ) {
+      if (!full_name || !instagram || !whatsapp || !car_model) {
         setError('Preencha todos os campos obrigatórios.')
         setLoading(false)
         return
       }
 
-      if (!selectedFile) {
+      if (!memberFile) {
+        setError('Envie uma foto sua para a carteirinha.')
+        setLoading(false)
+        return
+      }
+
+      if (!carFile) {
         setError('Envie uma foto do carro.')
         setLoading(false)
         return
       }
 
-      const { imageUrl, imagePath } =
-        await uploadApplicationPhoto(selectedFile)
+      const memberPhoto = await uploadPhoto(memberFile, 'member-photos')
+      const carPhoto = await uploadPhoto(carFile, 'applications')
 
       const applicationPayload = {
         ...formData,
-        image_name: selectedFile.name,
-        image_url: imageUrl,
-        image_path: imagePath,
+        car_setup: null,
+        image_name: carFile.name,
+        image_url: carPhoto.url,
+        image_path: carPhoto.path,
+        member_photo_url: memberPhoto.url,
+        member_photo_path: memberPhoto.path,
         status: 'pending',
       }
 
@@ -182,11 +192,7 @@ function Apply() {
 
       if (supabaseError) {
         console.error(supabaseError)
-
-        setError(
-          'Erro ao salvar aplicação na plataforma.',
-        )
-
+        setError('Erro ao salvar aplicação na plataforma.')
         setLoading(false)
         return
       }
@@ -200,21 +206,18 @@ function Apply() {
         instagram: '',
         whatsapp: '',
         car_model: '',
-        car_setup: '',
         message: '',
       })
 
-      setPreview(null)
-      setSelectedFile(null)
+      setCarPreview(null)
+      setMemberPreview(null)
+      setCarFile(null)
+      setMemberFile(null)
 
       event.target.reset()
     } catch (err) {
       console.error(err)
-
-      setError(
-        err?.message ||
-          'Erro inesperado ao enviar aplicação.',
-      )
+      setError(err?.message || 'Erro inesperado ao enviar aplicação.')
     }
 
     setLoading(false)
@@ -250,7 +253,8 @@ function Apply() {
         </h1>
 
         <p className="mt-5 text-sm leading-6 text-white/45">
-          Envie seus dados e uma foto do carro para análise da NoFvce Crew.
+          Envie seus dados, uma foto sua para a carteirinha e uma foto do carro
+          para análise da NoFvce Crew.
         </p>
 
         {success && (
@@ -310,15 +314,6 @@ function Apply() {
             className="w-full rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
           />
 
-          <input
-            name="car_setup"
-            type="text"
-            value={formData.car_setup}
-            onChange={handleChange}
-            placeholder="Setup atual do carro"
-            className="w-full rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
-          />
-
           <textarea
             name="message"
             rows="4"
@@ -328,44 +323,31 @@ function Apply() {
             className="w-full resize-none rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
           />
 
-          <label className="block rounded-2xl border border-dashed border-white/10 bg-black/50 p-5 text-center">
-            <span className="block text-xs font-black uppercase tracking-[0.25em] text-white/40">
-              Foto do carro
-            </span>
+          <ImageInput
+            title="Foto para carteirinha"
+            description="Foto da pessoa • JPG, PNG ou WEBP • máximo 5MB"
+            name="member_photo"
+            onChange={handleMemberImageChange}
+          />
 
-            <span className="mt-2 block text-[11px] uppercase tracking-[0.2em] text-white/25">
-              JPG, PNG ou WEBP • máximo 5MB
-            </span>
+          {memberPreview && !error && (
+            <PreviewImage src={memberPreview} label="Preview da foto do membro" />
+          )}
 
-            <input
-              name="attachment"
-              type="file"
-              accept="image/png, image/jpeg, image/webp"
-              required
-              onChange={handleImageChange}
-              className="mt-4 w-full text-xs text-white/40 file:mr-4 file:rounded-full file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-xs file:font-bold file:uppercase file:text-white/60"
-            />
-          </label>
+          <ImageInput
+            title="Foto do carro"
+            description="Foto do carro • JPG, PNG ou WEBP • máximo 5MB"
+            name="car_photo"
+            onChange={handleCarImageChange}
+          />
+
+          {carPreview && !error && (
+            <PreviewImage src={carPreview} label="Preview do carro" />
+          )}
 
           {error && (
             <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-4 text-sm text-red-300">
               {error}
-            </div>
-          )}
-
-          {preview && !error && (
-            <div className="overflow-hidden rounded-[1.5rem] border border-white/5 bg-black/60">
-              <img
-                src={preview}
-                alt="Prévia do carro"
-                className="h-56 w-full object-cover"
-              />
-
-              <div className="p-4">
-                <p className="text-[10px] uppercase tracking-[0.3em] text-white/30">
-                  Preview do carro
-                </p>
-              </div>
             </div>
           )}
 
@@ -379,6 +361,43 @@ function Apply() {
         </form>
       </section>
     </main>
+  )
+}
+
+function ImageInput({ title, description, name, onChange }) {
+  return (
+    <label className="block rounded-2xl border border-dashed border-white/10 bg-black/50 p-5 text-center">
+      <span className="block text-xs font-black uppercase tracking-[0.25em] text-white/40">
+        {title}
+      </span>
+
+      <span className="mt-2 block text-[11px] uppercase tracking-[0.2em] text-white/25">
+        {description}
+      </span>
+
+      <input
+        name={name}
+        type="file"
+        accept="image/png, image/jpeg, image/webp"
+        required
+        onChange={onChange}
+        className="mt-4 w-full text-xs text-white/40 file:mr-4 file:rounded-full file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-xs file:font-bold file:uppercase file:text-white/60"
+      />
+    </label>
+  )
+}
+
+function PreviewImage({ src, label }) {
+  return (
+    <div className="overflow-hidden rounded-[1.5rem] border border-white/5 bg-black/60">
+      <img src={src} alt={label} className="h-56 w-full object-cover" />
+
+      <div className="p-4">
+        <p className="text-[10px] uppercase tracking-[0.3em] text-white/30">
+          {label}
+        </p>
+      </div>
+    </div>
   )
 }
 
