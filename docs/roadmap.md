@@ -54,6 +54,9 @@ Initial roles:
 - Persistent chat messages
 - Private feed MVP
 - Photo posts, captions, likes and comments
+- Event MVP
+- Member RSVP
+- Admin event check-in
 - QR member verification route
 - PWA base
 
@@ -68,11 +71,10 @@ Initial roles:
 
 ## Phase 3 - Events
 
-- Event creation
-- RSVP
+- Event media and detail pages
 - Participant list
 - Location/map
-- QR check-in using member card
+- Camera QR check-in using member card
 - Admin scanner
 - Event chat
 - Attendance history

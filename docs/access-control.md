@@ -97,6 +97,7 @@ Member-side private content:
 | Dashboard and Garage | Active member views are returned only after validating the stored member UUID plus individual `access_code`. |
 | Chat | Active members can read and send messages after the same member/code validation. |
 | Feed | Active members can read posts, publish posts, like and comment after the same member/code validation. |
+| Events | Active members can see released events and confirm/cancel presence while RSVP is open. |
 | Profile | Active members can read/update only their own profile/card through the member UUID plus `access_code`. |
 
 ## Applications
@@ -133,8 +134,11 @@ Field: `identity_rule_confirmed`
 | Delete member | Yes | Yes | No | No |
 | Change member role | Yes | Yes | No | No |
 | Moderate chat/feed content | Yes | Yes | Yes | No |
+| Create/update/delete events | Yes | Yes | No | No |
+| See event RSVP and mark check-in | Yes | Yes | Yes | No |
 | Access member app with code | If active member | If active member | If active member | Yes |
 | Post, like and comment in private feed | If active member | If active member | If active member | Yes |
+| Confirm/cancel event presence | If active member | If active member | If active member | Yes |
 
 ## Notes
 

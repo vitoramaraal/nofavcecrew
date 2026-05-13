@@ -245,6 +245,43 @@ create index if not exists feed_comments_post_id_created_at_idx
 create index if not exists feed_comments_member_id_idx
   on public.feed_comments (member_id);
 
+create table if not exists public.crew_events (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  description text,
+  location text,
+  starts_at timestamptz,
+  status text not null default 'draft'
+    check (status in ('draft', 'open', 'closed', 'completed', 'cancelled')),
+  capacity integer check (capacity is null or capacity > 0),
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists crew_events_starts_at_idx
+  on public.crew_events (starts_at desc);
+
+create index if not exists crew_events_status_idx
+  on public.crew_events (status);
+
+create table if not exists public.event_rsvps (
+  event_id uuid not null references public.crew_events(id) on delete cascade,
+  member_id uuid not null references public.members(id) on delete cascade,
+  status text not null default 'going'
+    check (status in ('going', 'not_going')),
+  checked_in_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (event_id, member_id)
+);
+
+create index if not exists event_rsvps_member_id_idx
+  on public.event_rsvps (member_id);
+
+create index if not exists event_rsvps_event_status_idx
+  on public.event_rsvps (event_id, status);
+
 insert into storage.buckets (id, name, public)
 values ('application-photos', 'application-photos', true)
 on conflict (id) do update set public = excluded.public;
@@ -256,6 +293,8 @@ alter table public.chat_messages enable row level security;
 alter table public.feed_posts enable row level security;
 alter table public.feed_likes enable row level security;
 alter table public.feed_comments enable row level security;
+alter table public.crew_events enable row level security;
+alter table public.event_rsvps enable row level security;
 
 drop policy if exists "Admins can read admin users" on public.admin_users;
 create policy "Admins can read admin users"
@@ -416,6 +455,67 @@ create policy "Admins can delete feed comments"
   to authenticated
   using (public.can_review_applications());
 
+drop policy if exists "Admins can read crew events" on public.crew_events;
+create policy "Admins can read crew events"
+  on public.crew_events
+  for select
+  to authenticated
+  using (public.can_review_applications());
+
+drop policy if exists "Admins can create crew events" on public.crew_events;
+create policy "Admins can create crew events"
+  on public.crew_events
+  for insert
+  to authenticated
+  with check (public.can_manage_members());
+
+drop policy if exists "Admins can update crew events" on public.crew_events;
+create policy "Admins can update crew events"
+  on public.crew_events
+  for update
+  to authenticated
+  using (public.can_manage_members())
+  with check (
+    public.can_manage_members()
+    and status in ('draft', 'open', 'closed', 'completed', 'cancelled')
+  );
+
+drop policy if exists "Admins can delete crew events" on public.crew_events;
+create policy "Admins can delete crew events"
+  on public.crew_events
+  for delete
+  to authenticated
+  using (public.can_manage_members());
+
+drop policy if exists "Admins can read event rsvps" on public.event_rsvps;
+create policy "Admins can read event rsvps"
+  on public.event_rsvps
+  for select
+  to authenticated
+  using (public.can_review_applications());
+
+drop policy if exists "Admins can create event rsvps" on public.event_rsvps;
+create policy "Admins can create event rsvps"
+  on public.event_rsvps
+  for insert
+  to authenticated
+  with check (public.can_review_applications());
+
+drop policy if exists "Admins can update event rsvps" on public.event_rsvps;
+create policy "Admins can update event rsvps"
+  on public.event_rsvps
+  for update
+  to authenticated
+  using (public.can_review_applications())
+  with check (public.can_review_applications());
+
+drop policy if exists "Admins can delete event rsvps" on public.event_rsvps;
+create policy "Admins can delete event rsvps"
+  on public.event_rsvps
+  for delete
+  to authenticated
+  using (public.can_review_applications());
+
 grant insert on public.applications to anon;
 grant select, insert, update, delete on public.applications to authenticated;
 grant select, insert, update, delete on public.members to authenticated;
@@ -424,6 +524,8 @@ grant select, delete on public.chat_messages to authenticated;
 grant select, delete on public.feed_posts to authenticated;
 grant select on public.feed_likes to authenticated;
 grant select, delete on public.feed_comments to authenticated;
+grant select, insert, update, delete on public.crew_events to authenticated;
+grant select, insert, update, delete on public.event_rsvps to authenticated;
 
 create or replace function public.authenticate_member(secret_code text)
 returns table (
@@ -1099,3 +1201,223 @@ $$;
 
 grant execute on function public.create_feed_comment(uuid, text, uuid, text)
   to anon, authenticated;
+
+create or replace function public.list_member_events(
+  active_member_id uuid,
+  secret_code text
+)
+returns table (
+  id uuid,
+  title text,
+  description text,
+  location text,
+  starts_at timestamptz,
+  status text,
+  capacity integer,
+  created_at timestamptz,
+  attendee_count bigint,
+  checked_in_count bigint,
+  current_member_rsvp_status text,
+  current_member_checked_in_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+as $$
+  with active_session as (
+    select members.id
+    from public.members
+    where members.id = active_member_id
+      and members.status = 'active'
+      and members.access_code = secret_code
+    limit 1
+  )
+  select
+    crew_events.id,
+    crew_events.title,
+    crew_events.description,
+    crew_events.location,
+    crew_events.starts_at,
+    crew_events.status,
+    crew_events.capacity,
+    crew_events.created_at,
+    (
+      select count(*)
+      from public.event_rsvps
+      where event_rsvps.event_id = crew_events.id
+        and event_rsvps.status = 'going'
+    ) as attendee_count,
+    (
+      select count(*)
+      from public.event_rsvps
+      where event_rsvps.event_id = crew_events.id
+        and event_rsvps.status = 'going'
+        and event_rsvps.checked_in_at is not null
+    ) as checked_in_count,
+    current_rsvp.status as current_member_rsvp_status,
+    current_rsvp.checked_in_at as current_member_checked_in_at
+  from public.crew_events
+  cross join active_session
+  left join public.event_rsvps as current_rsvp
+    on current_rsvp.event_id = crew_events.id
+    and current_rsvp.member_id = active_member_id
+  where crew_events.status in ('open', 'closed', 'completed')
+  order by crew_events.starts_at asc nulls last, crew_events.created_at desc;
+$$;
+
+grant execute on function public.list_member_events(uuid, text)
+  to anon, authenticated;
+
+create or replace function public.set_event_rsvp(
+  active_member_id uuid,
+  secret_code text,
+  target_event_id uuid,
+  rsvp_status text
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  normalized_status text := lower(trim(coalesce(rsvp_status, 'going')));
+  event_status text;
+  current_capacity integer;
+  attendee_count integer;
+begin
+  if normalized_status not in ('going', 'not_going') then
+    raise exception 'Invalid RSVP status.';
+  end if;
+
+  if not exists (
+    select 1
+    from public.members
+    where members.id = active_member_id
+      and members.status = 'active'
+      and members.access_code = secret_code
+  ) then
+    raise exception 'Active member not found.';
+  end if;
+
+  select crew_events.status, crew_events.capacity
+  into event_status, current_capacity
+  from public.crew_events
+  where crew_events.id = target_event_id;
+
+  if event_status is null then
+    raise exception 'Event not found.';
+  end if;
+
+  if event_status <> 'open' then
+    raise exception 'Event is not open for RSVP.';
+  end if;
+
+  if normalized_status = 'going'
+    and current_capacity is not null
+    and not exists (
+      select 1
+      from public.event_rsvps
+      where event_rsvps.event_id = target_event_id
+        and event_rsvps.member_id = active_member_id
+        and event_rsvps.status = 'going'
+    ) then
+    select count(*)::integer
+    into attendee_count
+    from public.event_rsvps
+    where event_rsvps.event_id = target_event_id
+      and event_rsvps.status = 'going';
+
+    if attendee_count >= current_capacity then
+      raise exception 'Event capacity reached.';
+    end if;
+  end if;
+
+  insert into public.event_rsvps (
+    event_id,
+    member_id,
+    status,
+    checked_in_at,
+    updated_at
+  )
+  values (
+    target_event_id,
+    active_member_id,
+    normalized_status,
+    null,
+    now()
+  )
+  on conflict (event_id, member_id) do update
+  set status = excluded.status,
+      checked_in_at = case
+        when excluded.status = 'not_going' then null
+        else public.event_rsvps.checked_in_at
+      end,
+      updated_at = now();
+
+  return normalized_status;
+end;
+$$;
+
+grant execute on function public.set_event_rsvp(uuid, text, uuid, text)
+  to anon, authenticated;
+
+create or replace function public.check_in_event_member(
+  target_event_id uuid,
+  target_member_id uuid
+)
+returns timestamptz
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  checkin_time timestamptz := now();
+begin
+  if not public.can_review_applications() then
+    raise exception 'Admin access required.';
+  end if;
+
+  if not exists (
+    select 1
+    from public.crew_events
+    where crew_events.id = target_event_id
+      and crew_events.status in ('open', 'closed', 'completed')
+  ) then
+    raise exception 'Event not found.';
+  end if;
+
+  if not exists (
+    select 1
+    from public.members
+    where members.id = target_member_id
+      and members.status = 'active'
+  ) then
+    raise exception 'Active member not found.';
+  end if;
+
+  insert into public.event_rsvps (
+    event_id,
+    member_id,
+    status,
+    checked_in_at,
+    updated_at
+  )
+  values (
+    target_event_id,
+    target_member_id,
+    'going',
+    checkin_time,
+    now()
+  )
+  on conflict (event_id, member_id) do update
+  set status = 'going',
+      checked_in_at = coalesce(public.event_rsvps.checked_in_at, checkin_time),
+      updated_at = now()
+  returning checked_in_at into checkin_time;
+
+  return checkin_time;
+end;
+$$;
+
+grant execute on function public.check_in_event_member(uuid, uuid)
+  to authenticated;

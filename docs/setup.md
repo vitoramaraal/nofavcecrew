@@ -61,7 +61,7 @@ Allowed admin panel roles are:
 7. Login at `/admin` with that Supabase Auth email and password.
 8. To remove old generated test data, run `docs/cleanup-test-data.sql`.
 9. After changing SQL locally, run the full schema again so new tables/functions
-   like chat, feed and QR verification exist.
+   like chat, feed, events and QR verification exist.
 
 ## Access Flow
 
@@ -78,9 +78,9 @@ Allowed admin panel roles are:
 8. `/members/profile` loads only the current logged-in member profile/card.
 9. The member can edit bio, Instagram, setup, specs, mods and gallery from
    `/members/profile`.
-10. `/members/feed`, `/members/chat`, `/members/dashboard` and `/members/garage`
-    validate the stored member UUID plus secret code before returning private
-    crew content.
+10. `/members/feed`, `/members/events`, `/members/chat`, `/members/dashboard`
+    and `/members/garage` validate the stored member UUID plus secret code
+    before returning private crew content.
 
 ## Access Flags
 
@@ -106,6 +106,14 @@ The `/members/feed` route stores posts in `feed_posts`, likes in `feed_likes`
 and comments in `feed_comments`. Posts can include up to 4 images, a caption,
 likes and comments. Feed reads and writes validate the current member UUID plus
 the stored secret `access_code`.
+
+## Private Events
+
+The `/members/events` route lists active crew events from `crew_events`.
+Members can confirm or cancel presence through `event_rsvps` while an event is
+`open`. The admin panel can create events, change status, see confirmed members
+and mark check-in. A camera scanner can be added later on top of the same
+check-in function.
 
 ## Checks
 

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import Background from '../components/Background'
 import MemberCard from '../components/members/MemberCard'
+import { checkInEventMember } from '../lib/events'
 import { getSupabase } from '../lib/supabase'
 
 const adminRoles = ['founder', 'admin', 'moderator', 'member']
 const panelRoles = ['founder', 'admin', 'moderator']
 const managerRoles = ['founder', 'admin']
+const eventStatuses = ['draft', 'open', 'closed', 'completed', 'cancelled']
 
 function createMemberNumber() {
   return `NFC-${String(Date.now()).slice(-6)}`
@@ -52,10 +54,20 @@ function Admin() {
   const [checkingSession, setCheckingSession] = useState(true)
   const [applications, setApplications] = useState([])
   const [members, setMembers] = useState([])
+  const [events, setEvents] = useState([])
+  const [eventRsvps, setEventRsvps] = useState([])
   const [adminRole, setAdminRole] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [eventForm, setEventForm] = useState({
+    title: '',
+    description: '',
+    location: '',
+    starts_at: '',
+    status: 'open',
+    capacity: '',
+  })
 
   const isUnlocked = Boolean(session)
   const pending = applications.filter((item) => item.status === 'pending').length
@@ -63,6 +75,7 @@ function Admin() {
   const rejected = applications.filter((item) => item.status === 'rejected').length
   const canReviewApplications = panelRoles.includes(adminRole)
   const canManageMembers = managerRoles.includes(adminRole)
+  const canManageEvents = canManageMembers
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -81,6 +94,8 @@ function Admin() {
       if (!panelRoles.includes(role)) {
         setApplications([])
         setMembers([])
+        setEvents([])
+        setEventRsvps([])
         setAdminRole('')
         setError(
           'Usuario autenticado, mas ainda nao liberado em public.admin_users.',
@@ -93,6 +108,8 @@ function Admin() {
       const [
         { data: applicationsData, error: applicationsError },
         { data: membersData, error: membersError },
+        { data: eventsData, error: eventsError },
+        { data: eventRsvpsData, error: eventRsvpsError },
       ] = await Promise.all([
         client
           .from('applications')
@@ -100,6 +117,14 @@ function Admin() {
           .order('created_at', { ascending: false }),
         client
           .from('members')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        client
+          .from('crew_events')
+          .select('*')
+          .order('starts_at', { ascending: true }),
+        client
+          .from('event_rsvps')
           .select('*')
           .order('created_at', { ascending: false }),
       ])
@@ -112,8 +137,18 @@ function Admin() {
         throw membersError
       }
 
+      if (eventsError) {
+        throw eventsError
+      }
+
+      if (eventRsvpsError) {
+        throw eventRsvpsError
+      }
+
       setApplications(applicationsData || [])
       setMembers(membersData || [])
+      setEvents(eventsData || [])
+      setEventRsvps(eventRsvpsData || [])
     } catch (loadError) {
       console.error(loadError)
       setError(
@@ -232,10 +267,179 @@ function Admin() {
       setSession(null)
       setApplications([])
       setMembers([])
+      setEvents([])
+      setEventRsvps([])
       setAdminRole('')
     } catch (logoutError) {
       console.error(logoutError)
       setError('Nao foi possivel sair da sessao admin.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleEventFormChange(event) {
+    const { name, value } = event.target
+
+    setEventForm((current) => ({
+      ...current,
+      [name]: value,
+    }))
+
+    if (error) {
+      setError('')
+    }
+  }
+
+  async function createEvent(event) {
+    event.preventDefault()
+
+    if (!canManageEvents) {
+      setError('Seu cargo nao permite criar eventos.')
+      return
+    }
+
+    const title = eventForm.title.trim()
+
+    if (!title) {
+      setError('Informe o nome do evento.')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const client = getSupabase()
+      const startsAt = eventForm.starts_at
+        ? new Date(eventForm.starts_at).toISOString()
+        : null
+      const capacity = eventForm.capacity
+        ? Number(eventForm.capacity)
+        : null
+
+      const { error: eventError } = await client.from('crew_events').insert([
+        {
+          title,
+          description: eventForm.description.trim() || null,
+          location: eventForm.location.trim() || null,
+          starts_at: startsAt,
+          status: eventForm.status,
+          capacity,
+          created_by: session?.user?.id || null,
+          updated_at: new Date().toISOString(),
+        },
+      ])
+
+      if (eventError) {
+        throw eventError
+      }
+
+      setEventForm({
+        title: '',
+        description: '',
+        location: '',
+        starts_at: '',
+        status: 'open',
+        capacity: '',
+      })
+      setSuccess('Evento criado.')
+      await loadData()
+    } catch (eventError) {
+      console.error(eventError)
+      setError(eventError?.message || 'Nao foi possivel criar o evento.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function updateEventStatus(event, status) {
+    if (!canManageEvents) {
+      setError('Seu cargo nao permite alterar eventos.')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const client = getSupabase()
+      const { error: updateError } = await client
+        .from('crew_events')
+        .update({
+          status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', event.id)
+
+      if (updateError) {
+        throw updateError
+      }
+
+      setSuccess('Status do evento atualizado.')
+      await loadData()
+    } catch (updateError) {
+      console.error(updateError)
+      setError('Nao foi possivel atualizar o evento.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function deleteEvent(event) {
+    if (!canManageEvents) {
+      setError('Seu cargo nao permite apagar eventos.')
+      return
+    }
+
+    const confirmed = window.confirm(`Deseja apagar o evento ${event.title}?`)
+
+    if (!confirmed) return
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const client = getSupabase()
+      const { error: deleteError } = await client
+        .from('crew_events')
+        .delete()
+        .eq('id', event.id)
+
+      if (deleteError) {
+        throw deleteError
+      }
+
+      setSuccess('Evento apagado.')
+      await loadData()
+    } catch (deleteError) {
+      console.error(deleteError)
+      setError('Nao foi possivel apagar o evento.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function checkInMember(event, member) {
+    if (!canReviewApplications) {
+      setError('Seu cargo nao permite fazer check-in.')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      await checkInEventMember(event.id, member.id)
+      setSuccess(`Check-in confirmado para ${member.full_name}.`)
+      await loadData()
+    } catch (checkInError) {
+      console.error(checkInError)
+      setError(checkInError?.message || 'Nao foi possivel fazer check-in.')
     } finally {
       setLoading(false)
     }
@@ -653,6 +857,207 @@ function Admin() {
           </div>
         )}
 
+        <h2 className="mt-10 text-2xl font-black uppercase">Eventos</h2>
+
+        {canManageEvents && (
+          <form
+            onSubmit={createEvent}
+            className="mt-6 grid gap-4 rounded-[2rem] border border-white/5 bg-zinc-900/60 p-5 backdrop-blur-xl md:grid-cols-2"
+          >
+            <input
+              name="title"
+              value={eventForm.title}
+              onChange={handleEventFormChange}
+              placeholder="Nome do evento"
+              className="rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
+            />
+
+            <input
+              name="location"
+              value={eventForm.location}
+              onChange={handleEventFormChange}
+              placeholder="Local"
+              className="rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
+            />
+
+            <input
+              name="starts_at"
+              type="datetime-local"
+              value={eventForm.starts_at}
+              onChange={handleEventFormChange}
+              className="rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none"
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <select
+                name="status"
+                value={eventForm.status}
+                onChange={handleEventFormChange}
+                className="rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none"
+              >
+                {eventStatuses.map((status) => (
+                  <option key={status} value={status}>
+                    {getEventStatusLabel(status)}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                name="capacity"
+                type="number"
+                min="1"
+                value={eventForm.capacity}
+                onChange={handleEventFormChange}
+                placeholder="Vagas"
+                className="rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
+              />
+            </div>
+
+            <textarea
+              name="description"
+              value={eventForm.description}
+              onChange={handleEventFormChange}
+              placeholder="Descricao"
+              rows="4"
+              className="resize-none rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25 md:col-span-2"
+            />
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded-full border border-white/10 bg-white/10 px-5 py-4 text-[10px] font-black uppercase tracking-[0.28em] text-white/45 transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-30 md:col-span-2"
+            >
+              Criar evento
+            </button>
+          </form>
+        )}
+
+        <div className="mt-6 grid gap-5 md:grid-cols-2">
+          {events.length === 0 && !loading && (
+            <div className="rounded-[2rem] border border-white/5 bg-zinc-900/60 p-6 text-sm text-white/40">
+              Nenhum evento criado.
+            </div>
+          )}
+
+          {events.map((crewEvent) => {
+            const participants = eventRsvps
+              .filter(
+                (rsvp) =>
+                  rsvp.event_id === crewEvent.id && rsvp.status === 'going',
+              )
+              .map((rsvp) => ({
+                ...rsvp,
+                member: members.find((member) => member.id === rsvp.member_id),
+              }))
+              .filter((rsvp) => rsvp.member)
+            const checkedIn = participants.filter(
+              (rsvp) => rsvp.checked_in_at,
+            ).length
+
+            return (
+              <article
+                key={crewEvent.id}
+                className="rounded-[2rem] border border-white/5 bg-zinc-900/60 p-5 backdrop-blur-xl"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/25">
+                      {formatAdminEventDate(crewEvent.starts_at)}
+                    </p>
+
+                    <h3 className="mt-2 text-2xl font-black uppercase">
+                      {crewEvent.title}
+                    </h3>
+                  </div>
+
+                  <StatusBadge status={getEventStatusLabel(crewEvent.status)} />
+                </div>
+
+                <p className="mt-3 text-xs uppercase tracking-[0.25em] text-white/30">
+                  {crewEvent.location || 'Local secreto'}
+                </p>
+
+                <p className="mt-4 text-sm leading-6 text-white/50">
+                  {crewEvent.description || '-'}
+                </p>
+
+                <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                  <InfoBlock label="RSVP" value={participants.length} />
+                  <InfoBlock label="Check-in" value={checkedIn} />
+                  <InfoBlock
+                    label="Vagas"
+                    value={crewEvent.capacity || 'Livre'}
+                  />
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {participants.length === 0 && (
+                    <p className="text-sm text-white/35">
+                      Nenhum membro confirmou presenca.
+                    </p>
+                  )}
+
+                  {participants.map((rsvp) => (
+                    <div
+                      key={`${rsvp.event_id}-${rsvp.member_id}`}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/5 bg-black/40 p-4"
+                    >
+                      <div>
+                        <p className="text-sm font-black uppercase text-white">
+                          {rsvp.member.full_name}
+                        </p>
+
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-white/30">
+                          {rsvp.member.member_number || 'NOFVCE'}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => checkInMember(crewEvent, rsvp.member)}
+                        disabled={loading || Boolean(rsvp.checked_in_at)}
+                        className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300 disabled:cursor-not-allowed disabled:opacity-35"
+                      >
+                        {rsvp.checked_in_at ? 'Check-in ok' : 'Check-in'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-5 flex flex-wrap gap-3">
+                  {canManageEvents && (
+                    <select
+                      value={crewEvent.status}
+                      onChange={(event) =>
+                        updateEventStatus(crewEvent, event.target.value)
+                      }
+                      disabled={loading}
+                      className="rounded-full border border-white/10 bg-black/40 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/45 outline-none disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      {eventStatuses.map((status) => (
+                        <option key={status} value={status}>
+                          {getEventStatusLabel(status)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  {canManageEvents && (
+                    <button
+                      type="button"
+                      onClick={() => deleteEvent(crewEvent)}
+                      disabled={loading}
+                      className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      Apagar evento
+                    </button>
+                  )}
+                </div>
+              </article>
+            )
+          })}
+        </div>
+
         <h2 className="mt-10 text-2xl font-black uppercase">Candidaturas</h2>
 
         <div className="mt-6 grid gap-5">
@@ -925,6 +1330,30 @@ function StatusBadge({ status }) {
       {label}
     </span>
   )
+}
+
+function getEventStatusLabel(status) {
+  return (
+    {
+      draft: 'Rascunho',
+      open: 'Aberto',
+      closed: 'Fechado',
+      completed: 'Finalizado',
+      cancelled: 'Cancelado',
+    }[status] || status
+  )
+}
+
+function formatAdminEventDate(value) {
+  if (!value) return 'Data em breve'
+
+  return new Date(value).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 export default Admin

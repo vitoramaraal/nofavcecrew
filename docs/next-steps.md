@@ -23,6 +23,7 @@ MVP foundation completed:
 - Garage, events, drops, feed, profile and chat routes
 - Persistent internal chat table
 - Private feed with photos, captions, likes and comments
+- Event tables with member RSVP and admin check-in
 - QR verification route for member cards
 - Member card PNG export
 - Private profile page scoped to current member
@@ -33,8 +34,7 @@ MVP foundation completed:
 ## High Priority
 
 - Add realtime updates to internal chat and feed.
-- Harden QR validation for event check-in.
-- Add event tables, RSVP and QR check-in.
+- Add camera scanner for event check-in from member card QR.
 - Surface advanced profile data in garage cards and future profile views.
 - Move admin write actions to Supabase Edge Functions before larger production scale.
 - Add audit logs for admin approval, rejection, role changes and deletion.
