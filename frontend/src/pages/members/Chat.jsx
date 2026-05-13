@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import MobileAppLayout from '../../components/members/MobileAppLayout'
 import PageTransition from '../../components/PageTransition'
 import { createChatMessage, fetchChatMessages } from '../../lib/chat'
-import { getCurrentMember } from '../../utils/auth'
+import { getCurrentMember, getStoredAccessCode } from '../../utils/auth'
 
 function Chat() {
   const [messages, setMessages] = useState([])
@@ -10,12 +10,14 @@ function Chat() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const currentMember = getCurrentMember()
+  const accessCode = getStoredAccessCode()
 
   async function loadMessages() {
     setError('')
 
     try {
-      const data = await fetchChatMessages()
+      const data = await fetchChatMessages(currentMember?.id, accessCode)
 
       setMessages(data)
     } catch (chatError) {
@@ -30,11 +32,10 @@ function Chat() {
     event.preventDefault()
 
     const text = message.trim()
-    const member = getCurrentMember()
 
     if (!text || sending) return
 
-    if (!member?.id) {
+    if (!currentMember?.id || !accessCode) {
       setError('Sessao de membro invalida.')
       return
     }
@@ -43,7 +44,7 @@ function Chat() {
     setError('')
 
     try {
-      await createChatMessage(member.id, text)
+      await createChatMessage(currentMember.id, accessCode, text)
       setMessage('')
       await loadMessages()
     } catch (chatError) {
@@ -59,7 +60,7 @@ function Chat() {
 
     async function loadInitialMessages() {
       try {
-        const data = await fetchChatMessages()
+        const data = await fetchChatMessages(currentMember?.id, accessCode)
 
         if (!isMounted) return
 
@@ -82,7 +83,7 @@ function Chat() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [accessCode, currentMember?.id])
 
   return (
     <MobileAppLayout title="Chat">

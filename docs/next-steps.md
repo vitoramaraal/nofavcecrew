@@ -20,8 +20,9 @@ MVP foundation completed:
 - Private members area
 - Member session validation against Supabase on protected routes
 - Editable member profile with bio, setup, specs, mods and gallery
-- Garage, events, drops, profile and chat routes
+- Garage, events, drops, feed, profile and chat routes
 - Persistent internal chat table
+- Private feed with photos, captions, likes and comments
 - QR verification route for member cards
 - Member card PNG export
 - Private profile page scoped to current member
@@ -31,16 +32,15 @@ MVP foundation completed:
 
 ## High Priority
 
-- Add realtime updates to internal chat.
+- Add realtime updates to internal chat and feed.
 - Harden QR validation for event check-in.
 - Add event tables, RSVP and QR check-in.
-- Surface advanced profile data in garage cards and future feed/profile views.
+- Surface advanced profile data in garage cards and future profile views.
 - Move admin write actions to Supabase Edge Functions before larger production scale.
 - Add audit logs for admin approval, rejection, role changes and deletion.
 
 ## Medium Priority
 
-- Feed privado da crew with photos, captions, likes and comments.
 - Push notifications for approval, events, drops and posts.
 - Dynamic drops catalog with stock and sizes.
 - Public NoFvce page with manifesto, media and apply.

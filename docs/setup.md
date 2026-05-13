@@ -61,7 +61,7 @@ Allowed admin panel roles are:
 7. Login at `/admin` with that Supabase Auth email and password.
 8. To remove old generated test data, run `docs/cleanup-test-data.sql`.
 9. After changing SQL locally, run the full schema again so new tables/functions
-   like chat and QR verification exist.
+   like chat, feed and QR verification exist.
 
 ## Access Flow
 
@@ -78,6 +78,9 @@ Allowed admin panel roles are:
 8. `/members/profile` loads only the current logged-in member profile/card.
 9. The member can edit bio, Instagram, setup, specs, mods and gallery from
    `/members/profile`.
+10. `/members/feed`, `/members/chat`, `/members/dashboard` and `/members/garage`
+    validate the stored member UUID plus secret code before returning private
+    crew content.
 
 ## Access Flags
 
@@ -93,8 +96,16 @@ Initial roles:
 ## Internal Chat
 
 The `/members/chat` route stores messages in the `chat_messages` table. It is
-member-only through the app route guard. The current MVP uses manual sync after
-sending or pressing `Sync`; realtime can be enabled later.
+member-only through the app route guard and member/code RPC validation. The
+current MVP uses manual sync after sending or pressing `Sync`; realtime can be
+enabled later.
+
+## Private Feed
+
+The `/members/feed` route stores posts in `feed_posts`, likes in `feed_likes`
+and comments in `feed_comments`. Posts can include up to 4 images, a caption,
+likes and comments. Feed reads and writes validate the current member UUID plus
+the stored secret `access_code`.
 
 ## Checks
 

@@ -2,11 +2,17 @@ import { useEffect, useState } from 'react'
 import MobileAppLayout from '../../components/members/MobileAppLayout'
 import PageTransition from '../../components/PageTransition'
 import { fetchActiveMembers } from '../../lib/members'
-import { getCurrentMember, getMemberName } from '../../utils/auth'
+import {
+  getCurrentMember,
+  getMemberName,
+  getStoredAccessCode,
+} from '../../utils/auth'
 
 function Dashboard() {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
+  const currentMember = getCurrentMember()
+  const accessCode = getStoredAccessCode()
 
   async function loadMembers(showLoading = true) {
     if (showLoading) {
@@ -14,7 +20,7 @@ function Dashboard() {
     }
 
     try {
-      const data = await fetchActiveMembers()
+      const data = await fetchActiveMembers(currentMember?.id, accessCode)
 
       setMembers(data)
     } catch (error) {
@@ -30,7 +36,7 @@ function Dashboard() {
 
     async function loadInitialMembers() {
       try {
-        const data = await fetchActiveMembers()
+        const data = await fetchActiveMembers(currentMember?.id, accessCode)
 
         if (!isMounted) return
 
@@ -53,11 +59,10 @@ function Dashboard() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [accessCode, currentMember?.id])
 
   const totalMembers = members.length
   const totalCars = members.filter((member) => member.car_model).length
-  const currentMember = getCurrentMember()
   const memberName = getMemberName()
 
   return (

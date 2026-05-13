@@ -1,9 +1,12 @@
 import { getSupabase } from './supabase'
 
-export async function fetchChatMessages() {
+export async function fetchChatMessages(memberId, accessCode) {
   const client = getSupabase()
 
-  const { data, error } = await client.rpc('list_chat_messages')
+  const { data, error } = await client.rpc('list_chat_messages', {
+    active_member_id: memberId,
+    secret_code: accessCode,
+  })
 
   if (error) {
     throw error
@@ -22,11 +25,12 @@ export async function fetchChatMessages() {
   }))
 }
 
-export async function createChatMessage(memberId, body) {
+export async function createChatMessage(memberId, accessCode, body) {
   const client = getSupabase()
 
   const { error } = await client.rpc('create_chat_message', {
     active_member_id: memberId,
+    secret_code: accessCode,
     message_body: body.trim(),
   })
 

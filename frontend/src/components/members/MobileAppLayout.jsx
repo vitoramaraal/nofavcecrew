@@ -37,8 +37,9 @@ function MobileAppLayout({ children, title }) {
 
         <div className="flex-1">{children}</div>
 
-        <nav className="fixed bottom-4 left-1/2 z-50 grid w-[calc(100%-32px)] max-w-md -translate-x-1/2 grid-cols-6 rounded-full border border-white/5 bg-zinc-950/95 p-2 backdrop-blur-xl">
+        <nav className="fixed bottom-4 left-1/2 z-50 grid w-[calc(100%-32px)] max-w-md -translate-x-1/2 grid-cols-7 rounded-full border border-white/5 bg-zinc-950/95 p-2 backdrop-blur-xl">
           <NavItem href="/members/dashboard" label="Home" />
+          <NavItem href="/members/feed" label="Feed" />
           <NavItem href="/members/garage" label="Garage" />
           <NavItem href="/members/events" label="Events" />
           <NavItem href="/members/drops" label="Drops" />

@@ -52,17 +52,16 @@ Initial roles:
 - Digital member card
 - Internal chat route
 - Persistent chat messages
+- Private feed MVP
+- Photo posts, captions, likes and comments
 - QR member verification route
 - PWA base
 
 ## Phase 2 - Community
 
 - Realtime internal chat
-- Private feed
-- Photo posts
-- Captions
-- Likes
-- Comments
+- Realtime private feed
+- Post deletion/moderation tools
 - Member-only access rules
 - Advanced member profiles
 - Car galleries

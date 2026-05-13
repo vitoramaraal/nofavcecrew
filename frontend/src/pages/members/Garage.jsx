@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 import MobileAppLayout from '../../components/members/MobileAppLayout'
 import PageTransition from '../../components/PageTransition'
 import { fetchActiveMembers } from '../../lib/members'
+import { getCurrentMember, getStoredAccessCode } from '../../utils/auth'
 
 function Garage() {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
+  const currentMember = getCurrentMember()
+  const accessCode = getStoredAccessCode()
 
   async function loadMembers(showLoading = true) {
     if (showLoading) {
@@ -13,7 +16,7 @@ function Garage() {
     }
 
     try {
-      const data = await fetchActiveMembers()
+      const data = await fetchActiveMembers(currentMember?.id, accessCode)
 
       setMembers(data)
     } catch (error) {
@@ -29,7 +32,7 @@ function Garage() {
 
     async function loadInitialMembers() {
       try {
-        const data = await fetchActiveMembers()
+        const data = await fetchActiveMembers(currentMember?.id, accessCode)
 
         if (!isMounted) return
 
@@ -52,7 +55,7 @@ function Garage() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [accessCode, currentMember?.id])
 
   return (
     <MobileAppLayout title="Garage">

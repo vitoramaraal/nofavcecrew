@@ -207,6 +207,44 @@ create index if not exists chat_messages_created_at_idx
 create index if not exists chat_messages_member_id_idx
   on public.chat_messages (member_id);
 
+create table if not exists public.feed_posts (
+  id uuid primary key default gen_random_uuid(),
+  member_id uuid not null references public.members(id) on delete cascade,
+  body text not null default '' check (char_length(body) <= 700),
+  image_urls jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists feed_posts_created_at_idx
+  on public.feed_posts (created_at desc);
+
+create index if not exists feed_posts_member_id_idx
+  on public.feed_posts (member_id);
+
+create table if not exists public.feed_likes (
+  post_id uuid not null references public.feed_posts(id) on delete cascade,
+  member_id uuid not null references public.members(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (post_id, member_id)
+);
+
+create index if not exists feed_likes_member_id_idx
+  on public.feed_likes (member_id);
+
+create table if not exists public.feed_comments (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references public.feed_posts(id) on delete cascade,
+  member_id uuid not null references public.members(id) on delete cascade,
+  body text not null check (char_length(body) between 1 and 400),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists feed_comments_post_id_created_at_idx
+  on public.feed_comments (post_id, created_at asc);
+
+create index if not exists feed_comments_member_id_idx
+  on public.feed_comments (member_id);
+
 insert into storage.buckets (id, name, public)
 values ('application-photos', 'application-photos', true)
 on conflict (id) do update set public = excluded.public;
@@ -215,6 +253,9 @@ alter table public.applications enable row level security;
 alter table public.members enable row level security;
 alter table public.admin_users enable row level security;
 alter table public.chat_messages enable row level security;
+alter table public.feed_posts enable row level security;
+alter table public.feed_likes enable row level security;
+alter table public.feed_comments enable row level security;
 
 drop policy if exists "Admins can read admin users" on public.admin_users;
 create policy "Admins can read admin users"
@@ -340,11 +381,49 @@ create policy "Admins can delete chat messages"
   to authenticated
   using (public.can_review_applications());
 
+drop policy if exists "Admins can read feed posts" on public.feed_posts;
+create policy "Admins can read feed posts"
+  on public.feed_posts
+  for select
+  to authenticated
+  using (public.can_review_applications());
+
+drop policy if exists "Admins can delete feed posts" on public.feed_posts;
+create policy "Admins can delete feed posts"
+  on public.feed_posts
+  for delete
+  to authenticated
+  using (public.can_review_applications());
+
+drop policy if exists "Admins can read feed likes" on public.feed_likes;
+create policy "Admins can read feed likes"
+  on public.feed_likes
+  for select
+  to authenticated
+  using (public.can_review_applications());
+
+drop policy if exists "Admins can read feed comments" on public.feed_comments;
+create policy "Admins can read feed comments"
+  on public.feed_comments
+  for select
+  to authenticated
+  using (public.can_review_applications());
+
+drop policy if exists "Admins can delete feed comments" on public.feed_comments;
+create policy "Admins can delete feed comments"
+  on public.feed_comments
+  for delete
+  to authenticated
+  using (public.can_review_applications());
+
 grant insert on public.applications to anon;
 grant select, insert, update, delete on public.applications to authenticated;
 grant select, insert, update, delete on public.members to authenticated;
 grant select on public.admin_users to authenticated;
 grant select, delete on public.chat_messages to authenticated;
+grant select, delete on public.feed_posts to authenticated;
+grant select on public.feed_likes to authenticated;
+grant select, delete on public.feed_comments to authenticated;
 
 create or replace function public.authenticate_member(secret_code text)
 returns table (
@@ -394,7 +473,12 @@ $$;
 
 grant execute on function public.authenticate_member(text) to anon, authenticated;
 
-create or replace function public.list_active_members()
+drop function if exists public.list_active_members();
+
+create or replace function public.list_active_members(
+  active_member_id uuid,
+  secret_code text
+)
 returns table (
   id uuid,
   application_id uuid,
@@ -419,6 +503,14 @@ language sql
 security definer
 set search_path = public
 as $$
+  with active_session as (
+    select members.id
+    from public.members
+    where members.id = active_member_id
+      and members.status = 'active'
+      and members.access_code = secret_code
+    limit 1
+  )
   select
     members.id,
     members.application_id,
@@ -439,11 +531,13 @@ as $$
     members.profile_updated_at,
     members.created_at
   from public.members
+  cross join active_session
   where members.status = 'active'
   order by members.created_at desc;
 $$;
 
-grant execute on function public.list_active_members() to anon, authenticated;
+grant execute on function public.list_active_members(uuid, text)
+  to anon, authenticated;
 
 create or replace function public.get_member_profile(member_id uuid)
 returns table (
@@ -676,7 +770,12 @@ $$;
 
 grant execute on function public.verify_member(uuid) to anon, authenticated;
 
-create or replace function public.list_chat_messages()
+drop function if exists public.list_chat_messages();
+
+create or replace function public.list_chat_messages(
+  active_member_id uuid,
+  secret_code text
+)
 returns table (
   id uuid,
   member_id uuid,
@@ -690,6 +789,14 @@ language sql
 security definer
 set search_path = public
 as $$
+  with active_session as (
+    select members.id
+    from public.members
+    where members.id = active_member_id
+      and members.status = 'active'
+      and members.access_code = secret_code
+    limit 1
+  )
   select
     chat_messages.id,
     chat_messages.member_id,
@@ -700,15 +807,20 @@ as $$
     members.role as member_role
   from public.chat_messages
   join public.members on members.id = chat_messages.member_id
+  cross join active_session
   where members.status = 'active'
   order by chat_messages.created_at asc
   limit 100;
 $$;
 
-grant execute on function public.list_chat_messages() to anon, authenticated;
+grant execute on function public.list_chat_messages(uuid, text)
+  to anon, authenticated;
+
+drop function if exists public.create_chat_message(uuid, text);
 
 create or replace function public.create_chat_message(
   active_member_id uuid,
+  secret_code text,
   message_body text
 )
 returns uuid
@@ -730,6 +842,7 @@ begin
     from public.members
     where members.id = active_member_id
       and members.status = 'active'
+      and members.access_code = secret_code
   ) then
     raise exception 'Active member not found.';
   end if;
@@ -742,4 +855,247 @@ begin
 end;
 $$;
 
-grant execute on function public.create_chat_message(uuid, text) to anon, authenticated;
+grant execute on function public.create_chat_message(uuid, text, text)
+  to anon, authenticated;
+
+create or replace function public.list_feed_posts(
+  active_member_id uuid,
+  secret_code text
+)
+returns table (
+  id uuid,
+  member_id uuid,
+  body text,
+  image_urls jsonb,
+  created_at timestamptz,
+  author_name text,
+  author_member_number text,
+  author_role text,
+  author_car_model text,
+  author_member_photo_url text,
+  like_count bigint,
+  comment_count bigint,
+  liked_by_current_member boolean,
+  comments jsonb
+)
+language sql
+security definer
+set search_path = public
+as $$
+  with active_session as (
+    select members.id
+    from public.members
+    where members.id = active_member_id
+      and members.status = 'active'
+      and members.access_code = secret_code
+    limit 1
+  )
+  select
+    feed_posts.id,
+    feed_posts.member_id,
+    feed_posts.body,
+    feed_posts.image_urls,
+    feed_posts.created_at,
+    members.full_name as author_name,
+    members.member_number as author_member_number,
+    members.role as author_role,
+    members.car_model as author_car_model,
+    members.member_photo_url as author_member_photo_url,
+    (
+      select count(*)
+      from public.feed_likes
+      where feed_likes.post_id = feed_posts.id
+    ) as like_count,
+    (
+      select count(*)
+      from public.feed_comments
+      where feed_comments.post_id = feed_posts.id
+    ) as comment_count,
+    exists (
+      select 1
+      from public.feed_likes
+      where feed_likes.post_id = feed_posts.id
+        and feed_likes.member_id = active_member_id
+    ) as liked_by_current_member,
+    (
+      select coalesce(
+        jsonb_agg(
+          jsonb_build_object(
+            'id', feed_comments.id,
+            'member_id', feed_comments.member_id,
+            'body', feed_comments.body,
+            'created_at', feed_comments.created_at,
+            'author_name', comment_members.full_name,
+            'author_member_number', comment_members.member_number,
+            'author_role', comment_members.role
+          )
+          order by feed_comments.created_at asc
+        ),
+        '[]'::jsonb
+      )
+      from public.feed_comments
+      join public.members as comment_members
+        on comment_members.id = feed_comments.member_id
+      where feed_comments.post_id = feed_posts.id
+        and comment_members.status = 'active'
+    ) as comments
+  from public.feed_posts
+  join public.members on members.id = feed_posts.member_id
+  cross join active_session
+  where members.status = 'active'
+  order by feed_posts.created_at desc
+  limit 50;
+$$;
+
+grant execute on function public.list_feed_posts(uuid, text)
+  to anon, authenticated;
+
+create or replace function public.create_feed_post(
+  active_member_id uuid,
+  secret_code text,
+  post_body text,
+  post_image_urls jsonb
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  normalized_body text := left(trim(coalesce(post_body, '')), 700);
+  normalized_images jsonb := coalesce(post_image_urls, '[]'::jsonb);
+  created_post_id uuid;
+begin
+  if not exists (
+    select 1
+    from public.members
+    where members.id = active_member_id
+      and members.status = 'active'
+      and members.access_code = secret_code
+  ) then
+    raise exception 'Active member not found.';
+  end if;
+
+  if jsonb_typeof(normalized_images) <> 'array' then
+    raise exception 'Post images must be an array.';
+  end if;
+
+  if jsonb_array_length(normalized_images) > 4 then
+    raise exception 'Feed post can have at most 4 images.';
+  end if;
+
+  if char_length(normalized_body) < 1
+    and jsonb_array_length(normalized_images) < 1 then
+    raise exception 'Post must have text or image.';
+  end if;
+
+  insert into public.feed_posts (member_id, body, image_urls)
+  values (active_member_id, normalized_body, normalized_images)
+  returning id into created_post_id;
+
+  return created_post_id;
+end;
+$$;
+
+grant execute on function public.create_feed_post(uuid, text, text, jsonb)
+  to anon, authenticated;
+
+create or replace function public.toggle_feed_like(
+  active_member_id uuid,
+  secret_code text,
+  target_post_id uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (
+    select 1
+    from public.members
+    where members.id = active_member_id
+      and members.status = 'active'
+      and members.access_code = secret_code
+  ) then
+    raise exception 'Active member not found.';
+  end if;
+
+  if not exists (
+    select 1
+    from public.feed_posts
+    where feed_posts.id = target_post_id
+  ) then
+    raise exception 'Post not found.';
+  end if;
+
+  if exists (
+    select 1
+    from public.feed_likes
+    where feed_likes.post_id = target_post_id
+      and feed_likes.member_id = active_member_id
+  ) then
+    delete from public.feed_likes
+    where feed_likes.post_id = target_post_id
+      and feed_likes.member_id = active_member_id;
+
+    return false;
+  end if;
+
+  insert into public.feed_likes (post_id, member_id)
+  values (target_post_id, active_member_id);
+
+  return true;
+end;
+$$;
+
+grant execute on function public.toggle_feed_like(uuid, text, uuid)
+  to anon, authenticated;
+
+create or replace function public.create_feed_comment(
+  active_member_id uuid,
+  secret_code text,
+  target_post_id uuid,
+  comment_body text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  normalized_body text := left(trim(coalesce(comment_body, '')), 400);
+  created_comment_id uuid;
+begin
+  if char_length(normalized_body) < 1 then
+    raise exception 'Comment cannot be empty.';
+  end if;
+
+  if not exists (
+    select 1
+    from public.members
+    where members.id = active_member_id
+      and members.status = 'active'
+      and members.access_code = secret_code
+  ) then
+    raise exception 'Active member not found.';
+  end if;
+
+  if not exists (
+    select 1
+    from public.feed_posts
+    where feed_posts.id = target_post_id
+  ) then
+    raise exception 'Post not found.';
+  end if;
+
+  insert into public.feed_comments (post_id, member_id, body)
+  values (target_post_id, active_member_id, normalized_body)
+  returning id into created_comment_id;
+
+  return created_comment_id;
+end;
+$$;
+
+grant execute on function public.create_feed_comment(uuid, text, uuid, text)
+  to anon, authenticated;

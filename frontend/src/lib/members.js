@@ -1,9 +1,12 @@
 import { getSupabase } from './supabase'
 
-export async function fetchActiveMembers() {
+export async function fetchActiveMembers(memberId, accessCode) {
   const client = getSupabase()
 
-  const { data, error } = await client.rpc('list_active_members')
+  const { data, error } = await client.rpc('list_active_members', {
+    active_member_id: memberId,
+    secret_code: accessCode,
+  })
 
   if (error) {
     throw error

@@ -9,6 +9,7 @@ import Dashboard from './pages/members/Dashboard'
 import Garage from './pages/members/Garage'
 import Events from './pages/members/Events'
 import Drops from './pages/members/Drops'
+import Feed from './pages/members/Feed'
 import Profile from './pages/members/Profile'
 import Chat from './pages/members/Chat'
 import Admin from './pages/Admin'
@@ -26,6 +27,7 @@ const protectedRoutes = [
   '/members/garage',
   '/members/events',
   '/members/drops',
+  '/members/feed',
   '/members/chat',
   '/members/profile',
 ]
@@ -127,6 +129,10 @@ function App() {
 
   if (path === '/members/drops') {
     return <Drops />
+  }
+
+  if (path === '/members/feed') {
+    return <Feed />
   }
 
   if (path === '/members/chat') {
