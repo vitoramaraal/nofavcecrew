@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Background from '../components/Background'
-import { supabase } from '../lib/supabase'
+import { getSupabase } from '../lib/supabase'
 
 function Apply() {
   const [carPreview, setCarPreview] = useState(null)
@@ -10,6 +10,7 @@ function Apply() {
   const [loading, setLoading] = useState(false)
   const [carFile, setCarFile] = useState(null)
   const [memberFile, setMemberFile] = useState(null)
+  const [identityRuleAccepted, setIdentityRuleAccepted] = useState(false)
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -20,10 +21,17 @@ function Apply() {
   })
 
   function handleChange(event) {
+    const { name, value } = event.target
+    const nextValue = formatFieldValue(name, value)
+
     setFormData({
       ...formData,
-      [event.target.name]: event.target.value,
+      [name]: nextValue,
     })
+
+    if (error) {
+      setError('')
+    }
   }
 
   function validateImage(file) {
@@ -90,11 +98,12 @@ function Apply() {
   }
 
   async function uploadPhoto(file, folder) {
+    const client = getSupabase()
     const fileExtension = file.name.split('.').pop()
     const fileName = `${folder}-${Date.now()}.${fileExtension}`
     const filePath = `${folder}/${fileName}`
 
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await client.storage
       .from('application-photos')
       .upload(filePath, file, {
         cacheControl: '3600',
@@ -105,7 +114,7 @@ function Apply() {
       throw uploadError
     }
 
-    const { data } = supabase.storage
+    const { data } = client.storage
       .from('application-photos')
       .getPublicUrl(filePath)
 
@@ -128,6 +137,10 @@ function Apply() {
     emailFormData.append('Mensagem', data.message || '-')
     emailFormData.append('Foto do membro', data.member_photo_url || '-')
     emailFormData.append('Foto do carro', data.image_url || '-')
+    emailFormData.append(
+      'Regra de identidade',
+      data.identity_rule_confirmed ? 'Confirmada' : 'Nao confirmada',
+    )
 
     try {
       await fetch(
@@ -152,10 +165,10 @@ function Apply() {
     setSuccess(false)
 
     try {
-      const { full_name, instagram, whatsapp, car_model } = formData
+      const validationError = validateForm(formData)
 
-      if (!full_name || !instagram || !whatsapp || !car_model) {
-        setError('Preencha todos os campos obrigatórios.')
+      if (validationError) {
+        setError(validationError)
         setLoading(false)
         return
       }
@@ -172,6 +185,14 @@ function Apply() {
         return
       }
 
+      if (!identityRuleAccepted) {
+        setError(
+          'Confirme que a foto da carteirinha nao mostra rosto nitido sem blur ou mascara.',
+        )
+        setLoading(false)
+        return
+      }
+
       const memberPhoto = await uploadPhoto(memberFile, 'member-photos')
       const carPhoto = await uploadPhoto(carFile, 'applications')
 
@@ -183,10 +204,13 @@ function Apply() {
         image_path: carPhoto.path,
         member_photo_url: memberPhoto.url,
         member_photo_path: memberPhoto.path,
+        identity_rule_confirmed: true,
         status: 'pending',
       }
 
-      const { error: supabaseError } = await supabase
+      const client = getSupabase()
+
+      const { error: supabaseError } = await client
         .from('applications')
         .insert([applicationPayload])
 
@@ -209,6 +233,7 @@ function Apply() {
         message: '',
       })
 
+      setIdentityRuleAccepted(false)
       setCarPreview(null)
       setMemberPreview(null)
       setCarFile(null)
@@ -281,6 +306,7 @@ function Apply() {
             value={formData.full_name}
             onChange={handleChange}
             placeholder="Seu nome"
+            maxLength="80"
             className="w-full rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
           />
 
@@ -290,17 +316,20 @@ function Apply() {
             required
             value={formData.instagram}
             onChange={handleChange}
-            placeholder="Instagram"
+            placeholder="@instagram"
+            maxLength="31"
             className="w-full rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
           />
 
           <input
             name="whatsapp"
-            type="text"
+            type="tel"
+            inputMode="numeric"
             required
             value={formData.whatsapp}
             onChange={handleChange}
-            placeholder="WhatsApp"
+            placeholder="(11) 99999-9999"
+            maxLength="15"
             className="w-full rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
           />
 
@@ -311,6 +340,7 @@ function Apply() {
             value={formData.car_model}
             onChange={handleChange}
             placeholder="Modelo do carro"
+            maxLength="80"
             className="w-full rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
           />
 
@@ -320,12 +350,13 @@ function Apply() {
             value={formData.message}
             onChange={handleChange}
             placeholder="Por que quer entrar para a NoFvce?"
+            maxLength="500"
             className="w-full resize-none rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
           />
 
           <ImageInput
             title="Foto para carteirinha"
-            description="Foto da pessoa • JPG, PNG ou WEBP • máximo 5MB"
+            description="Sem rosto nitido: use blur, mascara ou enquadramento anonimo"
             name="member_photo"
             onChange={handleMemberImageChange}
           />
@@ -334,9 +365,26 @@ function Apply() {
             <PreviewImage src={memberPreview} label="Preview da foto do membro" />
           )}
 
+          <label className="flex gap-3 rounded-2xl border border-white/5 bg-black/50 p-4">
+            <input
+              type="checkbox"
+              checked={identityRuleAccepted}
+              onChange={(event) => {
+                setIdentityRuleAccepted(event.target.checked)
+                setError('')
+              }}
+              className="mt-1 h-5 w-5 shrink-0 accent-white"
+            />
+
+            <span className="text-sm leading-6 text-white/45">
+              Confirmo que a foto da carteirinha nao mostra meu rosto nitido
+              sem estar borrado, coberto por mascara ou anonimo.
+            </span>
+          </label>
+
           <ImageInput
             title="Foto do carro"
-            description="Foto do carro • JPG, PNG ou WEBP • máximo 5MB"
+            description="Foto do carro - JPG, PNG ou WEBP - maximo 5MB"
             name="car_photo"
             onChange={handleCarImageChange}
           />
@@ -353,7 +401,7 @@ function Apply() {
 
           <button
             type="submit"
-            disabled={!!error || loading}
+            disabled={loading}
             className="w-full rounded-full border border-white/10 bg-white/10 px-6 py-4 text-xs font-black uppercase tracking-[0.32em] text-white/40 backdrop-blur-xl transition hover:border-white/20 hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
             {loading ? 'Enviando...' : 'Enviar aplicação'}
@@ -399,6 +447,87 @@ function PreviewImage({ src, label }) {
       </div>
     </div>
   )
+}
+
+function formatFieldValue(name, value) {
+  const formatters = {
+    full_name: formatFullName,
+    instagram: formatInstagram,
+    whatsapp: formatWhatsApp,
+    car_model: formatCarModel,
+    message: limitMessage,
+  }
+
+  return formatters[name]?.(value) ?? value
+}
+
+function formatFullName(value) {
+  return value
+    .replace(/\s+/g, ' ')
+    .replace(/[0-9]/g, '')
+    .slice(0, 80)
+}
+
+function formatInstagram(value) {
+  const cleanValue = value
+    .toLowerCase()
+    .replace(/\s/g, '')
+    .replace(/[^a-z0-9._@]/g, '')
+    .replace(/@+/g, '@')
+    .replace(/^([^@])/, '@$1')
+
+  return cleanValue.startsWith('@')
+    ? cleanValue.slice(0, 31)
+    : `@${cleanValue}`.slice(0, 31)
+}
+
+function formatWhatsApp(value) {
+  const digits = value.replace(/\D/g, '').slice(0, 11)
+
+  if (digits.length <= 2) return digits
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`
+  if (digits.length <= 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
+  }
+
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
+}
+
+function formatCarModel(value) {
+  return value.replace(/\s+/g, ' ').slice(0, 80)
+}
+
+function limitMessage(value) {
+  return value.slice(0, 500)
+}
+
+function validateForm(data) {
+  const fullName = data.full_name.trim()
+  const instagram = data.instagram.trim()
+  const whatsappDigits = data.whatsapp.replace(/\D/g, '')
+  const carModel = data.car_model.trim()
+
+  if (!fullName || !instagram || !data.whatsapp || !carModel) {
+    return 'Preencha todos os campos obrigatorios.'
+  }
+
+  if (fullName.length < 3) {
+    return 'Informe um nome com pelo menos 3 caracteres.'
+  }
+
+  if (!/^@[a-z0-9._]{2,30}$/.test(instagram)) {
+    return 'Informe um Instagram valido, exemplo: @nofvcecrew.'
+  }
+
+  if (![10, 11].includes(whatsappDigits.length)) {
+    return 'Informe um WhatsApp valido com DDD.'
+  }
+
+  if (carModel.length < 2) {
+    return 'Informe o modelo do carro.'
+  }
+
+  return ''
 }
 
 export default Apply

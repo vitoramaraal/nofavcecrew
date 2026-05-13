@@ -37,11 +37,12 @@ function MobileAppLayout({ children, title }) {
 
         <div className="flex-1">{children}</div>
 
-        <nav className="fixed bottom-4 left-1/2 z-50 grid w-[calc(100%-32px)] max-w-md -translate-x-1/2 grid-cols-5 rounded-full border border-white/5 bg-zinc-950/95 p-2 backdrop-blur-xl">
+        <nav className="fixed bottom-4 left-1/2 z-50 grid w-[calc(100%-32px)] max-w-md -translate-x-1/2 grid-cols-6 rounded-full border border-white/5 bg-zinc-950/95 p-2 backdrop-blur-xl">
           <NavItem href="/members/dashboard" label="Home" />
           <NavItem href="/members/garage" label="Garage" />
           <NavItem href="/members/events" label="Events" />
           <NavItem href="/members/drops" label="Drops" />
+          <NavItem href="/members/chat" label="Chat" />
           <NavItem href="/members/profile" label="Perfil" />
         </nav>
       </section>
@@ -57,8 +58,8 @@ function NavItem({ href, label }) {
       href={href}
       className={
         active
-          ? 'rounded-full bg-white px-2 py-3 text-center text-[9px] font-black uppercase tracking-[0.1em] text-black'
-          : 'rounded-full px-2 py-3 text-center text-[9px] uppercase tracking-[0.1em] text-white/45'
+          ? 'rounded-full bg-white px-1 py-3 text-center text-[8px] font-black uppercase tracking-[0.06em] text-black'
+          : 'rounded-full px-1 py-3 text-center text-[8px] uppercase tracking-[0.06em] text-white/45'
       }
     >
       {label}

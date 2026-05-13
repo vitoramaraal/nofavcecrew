@@ -1,38 +1,80 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import MobileAppLayout from '../../components/members/MobileAppLayout'
 import PageTransition from '../../components/PageTransition'
-import { supabase } from '../../lib/supabase'
 import MemberCard from '../../components/members/MemberCard'
+import { fetchMemberProfile } from '../../lib/members'
+import { getCurrentMember } from '../../utils/auth'
+import {
+  exportMemberCardAsPng,
+} from '../../utils/exportMemberCard'
 
 function Profile() {
-  const [members, setMembers] = useState([])
-  const [selectedMember, setSelectedMember] = useState(null)
+  const [profileMember, setProfileMember] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
+  const cardSvgRef = useRef(null)
 
-  async function loadMembers() {
-    setLoading(true)
+  async function handleExportCard() {
+    if (exporting) return
 
-    const { data, error } = await supabase
-      .from('members')
-      .select('*')
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
+    setExporting(true)
+    setExportError('')
 
-    if (error) {
+    try {
+      const fileName = createCardFileName(profileMember)
+      await exportMemberCardAsPng(
+        cardSvgRef.current,
+        fileName,
+      )
+    } catch (error) {
       console.error(error)
-      setMembers([])
-      setSelectedMember(null)
-      setLoading(false)
-      return
+      setExportError(
+        'Nao foi possivel gerar a carteirinha. Tente novamente ou verifique se as fotos estao acessiveis.',
+      )
     }
 
-    setMembers(data || [])
-    setSelectedMember(data?.[0] || null)
-    setLoading(false)
+    setExporting(false)
   }
 
   useEffect(() => {
-    loadMembers()
+    let isMounted = true
+
+    async function loadInitialMembers() {
+      try {
+        const currentMember = getCurrentMember()
+
+        if (!isMounted) return
+
+        if (!currentMember?.id) {
+          setProfileMember(null)
+          setLoading(false)
+          return
+        }
+
+        const data = await fetchMemberProfile(currentMember.id)
+
+        if (!isMounted) return
+
+        setProfileMember(data)
+      } catch (error) {
+        console.error(error)
+
+        if (!isMounted) return
+
+        setProfileMember(null)
+      }
+
+      if (isMounted) {
+        setLoading(false)
+      }
+    }
+
+    void loadInitialMembers()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   if (loading) {
@@ -47,7 +89,7 @@ function Profile() {
     )
   }
 
-  if (!selectedMember) {
+  if (!profileMember) {
     return (
       <MobileAppLayout title="Profile">
         <PageTransition>
@@ -78,44 +120,37 @@ function Profile() {
         </section>
 
         <section className="mt-6">
-          <MemberCard member={selectedMember} />
+          <MemberCard member={profileMember} svgRef={cardSvgRef} />
         </section>
 
-        <section className="mt-6 rounded-[2rem] border border-white/5 bg-zinc-900/60 p-5 backdrop-blur-xl">
-          <p className="text-[10px] uppercase tracking-[0.35em] text-white/30">
-            Todos os membros
-          </p>
+        <section className="mt-5 rounded-[2rem] border border-white/5 bg-zinc-900/60 p-5 backdrop-blur-xl">
+          <button
+            type="button"
+            onClick={handleExportCard}
+            disabled={exporting}
+            className="w-full rounded-full border border-white/10 bg-white/10 px-5 py-4 text-[10px] font-black uppercase tracking-[0.25em] text-white/45 transition hover:border-white/20 hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {exporting ? 'Gerando...' : 'Baixar carteirinha'}
+          </button>
 
-          <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
-            {members.map((member) => (
-              <button
-                key={member.id}
-                type="button"
-                onClick={() => setSelectedMember(member)}
-                className={`min-w-[150px] rounded-2xl border p-3 text-left transition ${
-                  selectedMember.id === member.id
-                    ? 'border-red-500/50 bg-red-500/10'
-                    : 'border-white/5 bg-black/40'
-                }`}
-              >
-                <p className="text-[9px] font-black uppercase tracking-[0.25em] text-red-400">
-                  {member.member_number || 'NFC'}
-                </p>
+          {exportError && (
+            <p className="mt-4 text-sm leading-6 text-red-300">
+              {exportError}
+            </p>
+          )}
 
-                <h3 className="mt-2 text-sm font-black uppercase text-white">
-                  {member.full_name}
-                </h3>
-
-                <p className="mt-1 text-xs text-white/35">
-                  {member.car_model || '-'}
-                </p>
-              </button>
-            ))}
-          </div>
         </section>
+
       </PageTransition>
     </MobileAppLayout>
   )
+}
+
+function createCardFileName(member) {
+  const memberNumber = member?.member_number || 'nofvce'
+  const safeName = memberNumber.toLowerCase().replace(/[^a-z0-9-]/g, '-')
+
+  return `nofvce-card-${safeName}.png`
 }
 
 export default Profile

@@ -1,44 +1,10 @@
 export const crewStats = {
-  members: 12,
-  cars: 8,
-  meets: 4,
+  members: 0,
+  cars: 0,
+  meets: 0,
 }
 
-export const members = [
-  {
-    id: 1,
-    name: 'Vitor',
-    code: 'NFC-001',
-    role: 'Founder',
-    car: 'New Beetle',
-    build: 'Paddflush',
-    status: 'Active',
-    setup: 'Air suspension • Work Meister S1 • Paddflush',
-    tag: 'Founder Build',
-  },
-  {
-    id: 2,
-    name: 'Luis',
-    code: 'NFC-002',
-    role: 'Staff',
-    car: 'Gol G2',
-    build: 'Clean fitment',
-    status: 'Review',
-    setup: 'Clean fitment • Street build',
-    tag: 'Candidate',
-  },
-  {
-    id: 3,
-    name: 'Barrigudinho',
-    code: 'NFC-003',
-    role: 'Member',
-    car: 'Jetta GLI',
-    build: 'OEM+',
-    status: 'Coming',
-    setup: 'OEM+ • Low stance • Daily build',
-    tag: 'Pending',
-  },
-]
+export const members = []
 
 export const events = [
   {
@@ -48,7 +14,7 @@ export const events = [
     location: 'Secret Spot',
     status: 'Planning',
     description:
-      'Encontro noturno fechado para lineup, fotos low light e conteúdo oficial da NoFvce.',
+      'Encontro noturno fechado para lineup, fotos low light e conteudo oficial da NoFvce.',
   },
   {
     id: 2,
@@ -57,7 +23,7 @@ export const events = [
     location: 'Underground Location',
     status: 'Open',
     description:
-      'Sessão de fotos com estética dark/grunge para criar material oficial da crew.',
+      'Sessao de fotos com estetica dark/grunge para criar material oficial da crew.',
   },
   {
     id: 3,
@@ -66,7 +32,7 @@ export const events = [
     location: 'TBD',
     status: 'Private',
     description:
-      'Primeiro rolê oficial com os membros aprovados e carros selecionados.',
+      'Primeiro role oficial com os membros aprovados e carros selecionados.',
   },
 ]
 
@@ -91,29 +57,4 @@ export const drops = [
   },
 ]
 
-export const applications = [
-  {
-    id: 1,
-    name: 'Alemao da Caravan',
-    instagram: '@alemaodacaravan',
-    car: 'Gol turbo A',
-    setup: 'turbao',
-    status: 'Pending',
-  },
-  {
-    id: 2,
-    name: 'Rafael',
-    instagram: '@rafaelgarage',
-    car: 'Civic SI',
-    setup: 'stance',
-    status: 'Pending',
-  },
-  {
-    id: 3,
-    name: 'Matheus',
-    instagram: '@math.low',
-    car: 'New Beetle',
-    setup: 'turbao',
-    status: 'Pending',
-  },
-]
+export const applications = []

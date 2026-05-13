@@ -1,9 +1,17 @@
-function MemberCard({ member }) {
+import { createQrMatrix } from '../../lib/qr'
+
+function MemberCard({ member, svgRef }) {
   const memberId = member?.member_number || 'NFC-000000'
   const name = member?.full_name || 'NOFVCE MEMBER'
   const car = member?.car_model || 'CARRO NÃO INFORMADO'
   const memberPhoto = member?.member_photo_url
   const carPhoto = member?.image_url
+  const verificationUrl = getVerificationUrl(member)
+  const safeId = createSafeSvgId(member?.id || memberId)
+  const memberPhotoClipId = `memberPhotoClip-${safeId}`
+  const carPhotoClipId = `carPhotoClip-${safeId}`
+  const scratchesId = `scratches-${safeId}`
+  const glowId = `glow-${safeId}`
 
   const joined = member?.created_at
     ? new Date(member.created_at).toLocaleDateString('pt-BR')
@@ -13,21 +21,22 @@ function MemberCard({ member }) {
     <section className="w-full">
       <div className="mx-auto w-full max-w-[430px] rounded-[2rem] border border-white/10 bg-zinc-950 p-3 shadow-2xl">
         <svg
+          ref={svgRef}
           viewBox="0 0 1600 1000"
           className="block h-auto w-full rounded-[1.5rem]"
           role="img"
         >
           <defs>
-            <clipPath id="memberPhotoClip">
+            <clipPath id={memberPhotoClipId}>
               <rect x="90" y="305" width="330" height="410" rx="35" />
             </clipPath>
 
-            <clipPath id="carPhotoClip">
+            <clipPath id={carPhotoClipId}>
               <rect x="1045" y="350" width="420" height="260" rx="32" />
             </clipPath>
 
             <pattern
-              id="scratches"
+              id={scratchesId}
               width="28"
               height="28"
               patternUnits="userSpaceOnUse"
@@ -44,7 +53,7 @@ function MemberCard({ member }) {
               />
             </pattern>
 
-            <radialGradient id="glow" cx="75%" cy="20%" r="70%">
+            <radialGradient id={glowId} cx="75%" cy="20%" r="70%">
               <stop offset="0%" stopColor="#333333" stopOpacity="0.7" />
               <stop offset="45%" stopColor="#111111" stopOpacity="0.5" />
               <stop offset="100%" stopColor="#050505" stopOpacity="1" />
@@ -58,13 +67,13 @@ function MemberCard({ member }) {
             width="1596"
             height="996"
             rx="70"
-            fill="url(#glow)"
+            fill={`url(#${glowId})`}
           />
           <rect
             width="1600"
             height="1000"
             rx="70"
-            fill="url(#scratches)"
+            fill={`url(#${scratchesId})`}
           />
 
           <circle cx="1300" cy="90" r="310" fill="white" opacity="0.035" />
@@ -131,7 +140,7 @@ function MemberCard({ member }) {
               width="330"
               height="410"
               preserveAspectRatio="xMidYMid slice"
-              clipPath="url(#memberPhotoClip)"
+              clipPath={`url(#${memberPhotoClipId})`}
               opacity="0.9"
             />
           ) : (
@@ -251,7 +260,7 @@ function MemberCard({ member }) {
               width="420"
               height="260"
               preserveAspectRatio="xMidYMid meet"
-              clipPath="url(#carPhotoClip)"
+              clipPath={`url(#${carPhotoClipId})`}
               opacity="0.9"
             />
           ) : (
@@ -276,11 +285,11 @@ function MemberCard({ member }) {
             fill="white"
           />
 
-          <FakeQrSvg
+          <QrCodeSvg
             x={1155}
             y={690}
             size={200}
-            value={memberId}
+            value={verificationUrl}
           />
 
           <text
@@ -353,42 +362,28 @@ function MemberCard({ member }) {
   )
 }
 
-function FakeQrSvg({ x, y, size, value }) {
-  const seed = value
-    .split('')
-    .reduce((acc, char) => acc + char.charCodeAt(0), 0)
-
-  const cells = Array.from({ length: 100 }, (_, index) => {
-    const row = Math.floor(index / 10)
-    const col = index % 10
-
-    const corner =
-      (row < 3 && col < 3) ||
-      (row < 3 && col > 6) ||
-      (row > 6 && col < 3)
-
-    return corner || (index * seed + row + col) % 3 !== 0
-  })
-
-  const cellSize = size / 10
+function QrCodeSvg({ x, y, size, value }) {
+  const cells = createQrMatrix(value)
+  const cellSize = size / cells.length
 
   return (
     <g>
-      {cells.map((active, index) => {
-        const row = Math.floor(index / 10)
-        const col = index % 10
+      <rect x={x - 8} y={y - 8} width={size + 16} height={size + 16} fill="#fff" />
 
-        return (
-          <rect
-            key={index}
-            x={x + col * cellSize}
-            y={y + row * cellSize}
-            width={cellSize - 2}
-            height={cellSize - 2}
-            fill={active ? '#000000' : '#ffffff'}
-          />
-        )
-      })}
+      {cells.flatMap((rowCells, row) =>
+        rowCells.map((active, col) =>
+          active ? (
+            <rect
+              key={`${row}-${col}`}
+              x={x + col * cellSize}
+              y={y + row * cellSize}
+              width={Math.ceil(cellSize)}
+              height={Math.ceil(cellSize)}
+              fill="#000000"
+            />
+          ) : null,
+        ),
+      )}
     </g>
   )
 }
@@ -398,6 +393,22 @@ function limit(text, max) {
   return text.length > max
     ? `${text.slice(0, max - 1)}…`
     : text
+}
+
+function getVerificationUrl(member) {
+  const memberId = member?.id || member?.member_number || 'unknown'
+  const origin =
+    typeof window === 'undefined'
+      ? 'https://nofvcecrew.com'
+      : window.location.origin
+
+  return `${origin}/verify/${memberId}`
+}
+
+function createSafeSvgId(value) {
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
 }
 
 export default MemberCard

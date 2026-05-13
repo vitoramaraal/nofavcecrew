@@ -1,128 +1,52 @@
-# NoFvce Crew — Next Steps
+# NoFvce Crew - Next Steps
 
 ## Current Status
 
-Frontend foundation completed:
-- React
-- Vite
-- Tailwind CSS
-- Landing page structure
-- Navbar
-- Hero section
-- Manifest section
-- Pillars section
-- Events section
-- Members section
-- Join section
-- Footer
-- Background atmosphere
-- Smooth scrolling
-- Component architecture
-- GitHub structure
-- Initial commits
+MVP foundation completed:
 
----
+- React + Vite + Tailwind CSS
+- Minimal public landing
+- Candidate application without account
+- Application masks, validations and anonymous-face confirmation
+- Supabase applications and members
+- Admin approval/rejection flow protected by Supabase Auth
+- Admin allowlist through `public.admin_users`
+- Admin panel roles: founder, admin and moderator
+- Access flags documented in `docs/access-control.md`
+- Automatic member creation
+- Individual secret member code
+- WhatsApp code handoff from admin
+- Initial roles: founder, admin, moderator, member
+- Private members area
+- Garage, events, drops, profile and chat routes
+- Persistent internal chat table
+- QR verification route for member cards
+- Member card PNG export
+- Private profile page scoped to current member
+- Digital member card
+- PWA manifest and service worker
+- Setup, schema and cleanup docs
 
-# Next Frontend Goals
+## High Priority
 
-## Visual Refinement
+- Add realtime updates to internal chat.
+- Harden QR validation for event check-in.
+- Add event tables, RSVP and QR check-in.
+- Add advanced member profile fields: bio, full setup, specs, mods and gallery.
+- Move admin write actions to Supabase Edge Functions before larger production scale.
+- Add audit logs for admin approval, rejection, role changes and deletion.
 
-- Improve responsive design
-- Better mobile spacing
-- Improve typography hierarchy
-- Improve cinematic atmosphere
-- Add premium hover effects
-- Improve section transitions
+## Medium Priority
 
----
+- Feed privado da crew with photos, captions, likes and comments.
+- Push notifications for approval, events, drops and posts.
+- Dynamic drops catalog with stock and sizes.
+- Public NoFvce page with manifesto, media and apply.
 
-# Motion & Experience
+## Future
 
-## Framer Motion
-
-Add:
-- fade animations
-- scroll animations
-- smooth transitions
-- motion effects
-- reveal effects
-
----
-
-# Premium Experience
-
-## Planned Features
-
-- Custom cursor
-- Grain/noise texture
-- Dynamic lighting
-- Animated background glow
-- Smooth section transitions
-- Hero motion effects
-
----
-
-# PWA Goals
-
-- Configure manifest
-- Configure app icons
-- Add install prompt
-- Add splash screen
-- Transform website into installable app
-
----
-
-# Frontend Structure Evolution
-
-## Planned Pages
-
-- /garage
-- /members
-- /events
-- /join
-
----
-
-# Backend Future
-
-## Planned Technologies
-
-- Supabase
-- Authentication
-- Database
-- Media storage
-
----
-
-# Community Features
-
-- Member profiles
-- Car profiles
-- Feed system
-- Event system
-- Digital membership card
-- QR Code system
-
----
-
-# Long-Term Vision
-
-Transform NoFvce into:
-- premium automotive platform
-- underground lifestyle brand
-- digital automotive community
-- installable PWA experience
-
----
-
-# Philosophy
-
-The project should always prioritize:
-- identity
-- aesthetics
-- experience
-- minimalism
-- premium quality
-- underground culture
-
-NoFvce should feel immersive and cinematic.
+- Free deployment first, then `nofvcecrew.com` when the domain is available.
+- Capacitor or React Native wrapper if store publishing becomes necessary.
+- Regions/chapters.
+- Admin scanner using camera for QR check-in.
+- Official media gallery.

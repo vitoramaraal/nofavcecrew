@@ -1,134 +1,39 @@
-# Phase 1 — Presence & Identity
+# Phase 1 - Presence & Identity
 
 ## Objective
 
-Create the official digital presence of NoFvce Crew.
+Create the official digital presence of NoFvce Crew and validate the premium,
+minimal, underground automotive identity.
 
-The goal of this phase is to validate:
-- visual identity
-- user experience
-- community concept
-- premium/underground aesthetics
+## Checklist
 
-This phase is focused on simplicity, branding and experience.
+- [x] Create frontend project
+- [x] Configure Tailwind CSS
+- [x] Configure folder structure
+- [x] Create dark theme
+- [x] Configure PWA manifest
+- [x] Add service worker shell cache
+- [x] Create landing page
+- [x] Create application page
+- [x] Add application masks and identity-photo confirmation
+- [x] Create admin page with Supabase Auth
+- [x] Add admin allowlist in Supabase
+- [x] Create private members area
+- [x] Add individual member access code
+- [x] Add initial roles
+- [x] Create members garage page
+- [x] Add internal chat route
+- [x] Persist internal chat messages
+- [x] Add QR member verification route
+- [x] Add member card PNG export
+- [x] Scope profile page to current member only
+- [x] Create digital member card
+- [x] Prepare Supabase schema
+- [x] Replace prototype admin password with Supabase Auth
+- [ ] Deploy on Vercel
+- [ ] Move admin writes to Edge Functions for production scale
 
----
+## Result
 
-# Main Goals
-
-- Create a modern landing page
-- Create the first installable PWA version
-- Build a strong visual identity
-- Create the foundation of the platform
-- Make NoFvce feel like a real brand/community
-
----
-
-# Features
-
-## Landing Page
-
-The landing page must:
-- be responsive
-- use dark mode
-- have smooth animations
-- feel cinematic and premium
-- present the NoFvce concept
-
----
-
-## PWA Install
-
-Users should be able to:
-- open the website
-- install it on their phone
-- use it like an app
-
----
-
-## Members Page
-
-Create a simple members page containing:
-- member photo
-- name
-- car model
-- city
-
----
-
-## Car Profile Page
-
-Each car profile should contain:
-- car model
-- wheel setup
-- suspension setup
-- fitment style
-- modification list
-- photos
-
----
-
-# Emotional Goal
-
-The platform should transmit:
-- exclusivity
-- minimalism
-- underground culture
-- premium aesthetics
-- automotive lifestyle
-
-NoFvce should feel more like a movement than a regular car club.
-
----
-
-# Tech Stack
-
-## Frontend
-- React
-- Vite
-- Tailwind CSS
-
-## PWA
-- vite-plugin-pwa
-
-## Deploy
-- Vercel
-
----
-
-# Non-Goals
-
-The following features are NOT part of Phase 1:
-- marketplace
-- advanced backend
-- chat system
-- payment system
-- complex authentication
-- mobile native app
-
-The focus is experience and identity first.
-
----
-
-# Checklist
-
-- [ ] Create frontend project
-- [ ] Configure Tailwind CSS
-- [ ] Configure folder structure
-- [ ] Create dark theme
-- [ ] Configure PWA
-- [ ] Create landing page
-- [ ] Create members page
-- [ ] Create car profile page
-- [ ] First deploy on Vercel
-
----
-
-# Expected Result
-
-At the end of Phase 1, NoFvce should already:
-- look professional
-- feel like a premium community
-- work as an installable web app
-- have a strong visual identity
-- create a sense of belonging
+Phase 1 is ready as a local MVP. The remaining open items are deployment and
+deeper backend hardening before larger production scale.

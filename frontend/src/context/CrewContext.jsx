@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react'
+import { useState } from 'react'
 
 import {
   crewStats,
@@ -7,8 +7,7 @@ import {
   drops,
   applications,
 } from '../data/crewData'
-
-const CrewContext = createContext()
+import { CrewContext } from './crew'
 
 export function CrewProvider({ children }) {
   const [stats] = useState(crewStats)
@@ -65,6 +64,3 @@ export function CrewProvider({ children }) {
   )
 }
 
-export function useCrew() {
-  return useContext(CrewContext)
-}

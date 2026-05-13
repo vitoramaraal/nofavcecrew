@@ -1,10 +1,31 @@
-import { login } from '../../utils/auth'
+import { useState } from 'react'
+import { loginWithAccessCode } from '../../utils/auth'
 
 function Login() {
-  function handleLogin() {
-    login()
+  const [accessCode, setAccessCode] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-    window.location.href = '/members/dashboard'
+  async function handleLogin(event) {
+    event.preventDefault()
+
+    if (!accessCode.trim()) {
+      setError('Codigo de acesso invalido.')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      await loginWithAccessCode(accessCode)
+
+      window.location.href = '/members/dashboard'
+    } catch (loginError) {
+      console.error(loginError)
+      setError(loginError?.message || 'Codigo de acesso invalido.')
+      setLoading(false)
+    }
   }
 
   return (
@@ -19,28 +40,34 @@ function Login() {
         </h1>
 
         <p className="mt-5 text-sm leading-6 text-white/50">
-          Área privada para membros aprovados da NoFvce Crew.
+          Area privada para membros aprovados. Use o codigo secreto enviado
+          pela NoFvce apos a aprovacao.
         </p>
 
         <div className="mt-10 rounded-[2rem] border border-white/5 bg-zinc-900/60 p-5 backdrop-blur-xl">
-          <input
-            type="text"
-            placeholder="Member name"
-            className="w-full rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm outline-none placeholder:text-white/25"
-          />
+          <form onSubmit={handleLogin}>
+            <input
+              type="password"
+              value={accessCode}
+              onChange={(event) => setAccessCode(event.target.value)}
+              placeholder="Secret member code"
+              className="w-full rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm outline-none placeholder:text-white/25"
+            />
 
-          <input
-            type="password"
-            placeholder="Access code"
-            className="mt-4 w-full rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm outline-none placeholder:text-white/25"
-          />
+            {error && (
+              <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-4 text-sm text-red-300">
+                {error}
+              </div>
+            )}
 
-          <button
-            onClick={handleLogin}
-            className="mt-5 flex w-full items-center justify-center rounded-full border border-white/10 bg-white/10 px-5 py-4 text-xs font-black uppercase tracking-[0.25em] text-white/40 backdrop-blur-xl transition hover:border-white/20 hover:bg-white/15 hover:text-white"
-          >
-            Access Crew
-          </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-5 flex w-full items-center justify-center rounded-full border border-white/10 bg-white/10 px-5 py-4 text-xs font-black uppercase tracking-[0.25em] text-white/40 backdrop-blur-xl transition hover:border-white/20 hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {loading ? 'Validando...' : 'Access Crew'}
+            </button>
+          </form>
         </div>
 
         <a

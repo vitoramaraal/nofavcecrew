@@ -1,148 +1,96 @@
-# NoFvce Crew — Roadmap
+# NoFvce Crew Roadmap
 
-## Vision
+## Product Direction
 
-Create a premium automotive lifestyle platform focused on:
-- community
-- identity
-- experience
-- underground culture
-- digital presence
+NoFvce is a secret, minimal, members-only automotive lifestyle app. Candidates
+can apply publicly, but all community content stays private.
 
-The goal is to evolve NoFvce from a car club into a strong lifestyle and automotive brand.
+## Access Model
 
----
+- Candidate applies without account.
+- Admin approves or rejects.
+- Admin signs in with Supabase Auth and must be listed in `public.admin_users`.
+- Approval creates a member automatically.
+- Each member receives an individual secret code.
+- The code is sent through the WhatsApp number from the application.
+- Members log in with the secret code only.
 
-# Development Strategy
+Admin panel roles:
 
-The project will be built in phases.
+- founder: full access.
+- admin: full operational access.
+- moderator: sees applications/members, approves/rejects pending applications,
+  creates regular members, and will moderate chat/feed. Cannot delete members or
+  change roles.
 
-Each phase has a clear objective and should be completed before moving to the next one.
+Detailed permission matrix: `docs/access-control.md`.
 
-The focus is:
-- consistency
-- experience
-- quality
-- branding
-- long-term growth
+Initial roles:
 
----
+- founder
+- admin
+- moderator
+- member
 
-# Phase 1 — Presence & Identity
+## Phase 1 - MVP Foundation
 
-## Goal
-
-Create the official digital presence of NoFvce Crew.
-
-## Focus
-
-- Branding
-- Landing page
-- Dark theme
-- Installable PWA
-- Members page
-- Car profiles
-- Visual identity
-
-## Expected Result
-
-NoFvce should already:
-- look professional
-- feel premium
-- be installable on mobile
-- create community identity
-
----
-
-# Phase 2 — Community
-
-## Goal
-
-Create interaction between members.
-
-## Features
-
-- Social feed
-- Comments
-- Likes
+- Public landing
+- Application form
+- Admin panel
+- Supabase Auth admin access
+- Member approval/rejection
+- Member creation
+- Individual access code
+- WhatsApp code handoff
+- Members dashboard
+- Garage
 - Events
-- Meetups
-- Track day pages
-- Member approval system
-- Digital membership card
+- Drops
+- Profile
+- Digital member card
+- Internal chat route
+- Persistent chat messages
+- QR member verification route
+- PWA base
 
-## Expected Result
+## Phase 2 - Community
 
-The platform should begin functioning as a real community hub.
+- Realtime internal chat
+- Private feed
+- Photo posts
+- Captions
+- Likes
+- Comments
+- Member-only access rules
+- Advanced member profiles
+- Car galleries
 
----
+## Phase 3 - Events
 
-# Phase 3 — Lifestyle
+- Event creation
+- RSVP
+- Participant list
+- Location/map
+- QR check-in using member card
+- Admin scanner
+- Event chat
+- Attendance history
 
-## Goal
+## Phase 4 - Lifestyle
 
-Transform NoFvce into a lifestyle platform.
-
-## Features
-
+- Drops catalog
+- Sizes and stock
 - Wallpapers
 - Exclusive content
-- Store
-- Merch
-- Partner brands
-- Member benefits
-- Badges and achievements
+- Partner benefits
+- Badges
+- Member achievements
 
-## Expected Result
+## Phase 5 - Expansion
 
-Members should feel part of a premium automotive lifestyle brand.
-
----
-
-# Phase 4 — Expansion
-
-## Goal
-
-Expand the platform and ecosystem.
-
-## Features
-
+- Push notifications
+- Regions/chapters
+- Official media gallery
 - Marketplace
-- Advanced notifications
-- Member map
-- Chat system
-- Official events
-- Media partnerships
-- Advanced backend
-
-## Expected Result
-
-NoFvce becomes a recognizable digital automotive platform and community.
-
----
-
-# Long-Term Vision
-
-Future possibilities:
-- Official merchandise brand
-- Automotive media content
-- Exclusive events
-- Partner workshops
-- Mobile native app
-- Digital automotive ecosystem
-
----
-
-# Core Philosophy
-
-NoFvce should never feel like:
-- a generic car group
-- a simple forum
-- a basic social media page
-
-The platform should feel:
-- premium
-- modern
-- underground
-- immersive
-- exclusive
+- Mobile wrapper with Capacitor or React Native
+- Paid domain: `nofvcecrew.com`

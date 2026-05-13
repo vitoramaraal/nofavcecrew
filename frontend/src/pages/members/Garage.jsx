@@ -1,38 +1,61 @@
 import { useEffect, useState } from 'react'
 import MobileAppLayout from '../../components/members/MobileAppLayout'
 import PageTransition from '../../components/PageTransition'
-import { supabase } from '../../lib/supabase'
+import { fetchActiveMembers } from '../../lib/members'
 
 function Garage() {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
 
-  async function loadMembers() {
-    setLoading(true)
-
-    const { data, error } = await supabase
-      .from('members')
-      .select('*')
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error(error)
-      setMembers([])
-      setLoading(false)
-      return
+  async function loadMembers(showLoading = true) {
+    if (showLoading) {
+      setLoading(true)
     }
 
-    setMembers(data || [])
+    try {
+      const data = await fetchActiveMembers()
+
+      setMembers(data)
+    } catch (error) {
+      console.error(error)
+      setMembers([])
+    }
+
     setLoading(false)
   }
 
   useEffect(() => {
-    loadMembers()
+    let isMounted = true
+
+    async function loadInitialMembers() {
+      try {
+        const data = await fetchActiveMembers()
+
+        if (!isMounted) return
+
+        setMembers(data)
+      } catch (error) {
+        console.error(error)
+
+        if (!isMounted) return
+
+        setMembers([])
+      }
+
+      if (isMounted) {
+        setLoading(false)
+      }
+    }
+
+    void loadInitialMembers()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   return (
-    <MobileAppLayout>
+    <MobileAppLayout title="Garage">
       <PageTransition>
         <section className="px-5 pb-28 pt-6">
           <p className="text-[10px] uppercase tracking-[0.45em] text-white/30">

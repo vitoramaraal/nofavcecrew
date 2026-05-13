@@ -1,7 +1,7 @@
 import MobileAppLayout from '../../components/members/MobileAppLayout'
 import PageTransition from '../../components/PageTransition'
 
-import { useCrew } from '../../context/CrewContext'
+import { useCrew } from '../../context/crew'
 
 function Drops() {
   const { crewDrops } = useCrew()
