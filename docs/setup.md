@@ -112,8 +112,9 @@ the stored secret `access_code`.
 The `/members/events` route lists active crew events from `crew_events`.
 Members can confirm or cancel presence through `event_rsvps` while an event is
 `open`. The admin panel can create events, change status, see confirmed members
-and mark check-in. A camera scanner can be added later on top of the same
-check-in function.
+and mark check-in. The admin panel also includes a camera scanner for member
+card QR codes, with a manual `/verify/...` or UUID fallback for browsers that do
+not support camera QR detection.
 
 ## Checks
 

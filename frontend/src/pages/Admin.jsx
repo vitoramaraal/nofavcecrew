@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import EventCheckInScanner from '../components/admin/EventCheckInScanner'
 import Background from '../components/Background'
 import MemberCard from '../components/members/MemberCard'
 import { checkInEventMember } from '../lib/events'
@@ -423,7 +424,7 @@ function Admin() {
     }
   }
 
-  async function checkInMember(event, member) {
+  async function checkInMember(event, member, shouldThrow = false) {
     if (!canReviewApplications) {
       setError('Seu cargo nao permite fazer check-in.')
       return
@@ -440,6 +441,10 @@ function Admin() {
     } catch (checkInError) {
       console.error(checkInError)
       setError(checkInError?.message || 'Nao foi possivel fazer check-in.')
+
+      if (shouldThrow) {
+        throw checkInError
+      }
     } finally {
       setLoading(false)
     }
@@ -931,6 +936,14 @@ function Admin() {
             </button>
           </form>
         )}
+
+        <EventCheckInScanner
+          events={events}
+          members={members}
+          disabled={loading}
+          canScan={canReviewApplications}
+          onCheckIn={(event, member) => checkInMember(event, member, true)}
+        />
 
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           {events.length === 0 && !loading && (

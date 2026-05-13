@@ -57,6 +57,7 @@ Initial roles:
 - Event MVP
 - Member RSVP
 - Admin event check-in
+- Admin QR scanner for event check-in
 - QR member verification route
 - PWA base
 
@@ -74,8 +75,7 @@ Initial roles:
 - Event media and detail pages
 - Participant list
 - Location/map
-- Camera QR check-in using member card
-- Admin scanner
+- Advanced scanner history
 - Event chat
 - Attendance history
 
