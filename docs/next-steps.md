@@ -19,6 +19,7 @@ MVP foundation completed:
 - Initial roles: founder, admin, moderator, member
 - Private members area
 - Member session validation against Supabase on protected routes
+- Editable member profile with bio, setup, specs, mods and gallery
 - Garage, events, drops, profile and chat routes
 - Persistent internal chat table
 - QR verification route for member cards
@@ -33,7 +34,7 @@ MVP foundation completed:
 - Add realtime updates to internal chat.
 - Harden QR validation for event check-in.
 - Add event tables, RSVP and QR check-in.
-- Add advanced member profile fields: bio, full setup, specs, mods and gallery.
+- Surface advanced profile data in garage cards and future feed/profile views.
 - Move admin write actions to Supabase Edge Functions before larger production scale.
 - Add audit logs for admin approval, rejection, role changes and deletion.
 

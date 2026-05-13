@@ -76,6 +76,8 @@ Allowed admin panel roles are:
    If the member is deleted or inactive, local access is cleared.
 7. The member card QR opens `/verify/:id` and confirms whether the member is active.
 8. `/members/profile` loads only the current logged-in member profile/card.
+9. The member can edit bio, Instagram, setup, specs, mods and gallery from
+   `/members/profile`.
 
 ## Access Flags
 

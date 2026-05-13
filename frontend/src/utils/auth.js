@@ -2,6 +2,7 @@ import { getSupabase } from '../lib/supabase'
 
 const authKey = 'nofvce-auth'
 const memberKey = 'nofvce-member'
+const memberAccessCodeKey = 'nofvce-member-access-code'
 
 export async function loginWithAccessCode(accessCode) {
   const client = getSupabase()
@@ -20,23 +21,29 @@ export async function loginWithAccessCode(accessCode) {
     throw new Error('Codigo de acesso invalido.')
   }
 
-  saveMemberSession(member)
+  saveMemberSession(member, accessCode.trim())
 
   return member
 }
 
 export async function validateStoredMemberSession() {
   const currentMember = getCurrentMember()
+  const accessCode = getStoredAccessCode()
 
-  if (!currentMember?.id || localStorage.getItem(authKey) !== 'true') {
+  if (
+    !currentMember?.id ||
+    !accessCode ||
+    localStorage.getItem(authKey) !== 'true'
+  ) {
     logout()
     return null
   }
 
   const client = getSupabase()
 
-  const { data, error } = await client.rpc('get_member_profile', {
-    member_id: currentMember.id,
+  const { data, error } = await client.rpc('validate_member_session', {
+    active_member_id: currentMember.id,
+    secret_code: accessCode,
   })
 
   if (error) {
@@ -50,19 +57,34 @@ export async function validateStoredMemberSession() {
     return null
   }
 
-  saveMemberSession(member)
+  saveMemberSession(member, accessCode)
 
   return member
 }
 
-function saveMemberSession(member) {
+export function updateStoredMember(member) {
+  const accessCode = getStoredAccessCode()
+
+  saveMemberSession(member, accessCode)
+}
+
+export function getStoredAccessCode() {
+  return localStorage.getItem(memberAccessCodeKey) || ''
+}
+
+function saveMemberSession(member, accessCode) {
   localStorage.setItem(authKey, 'true')
   localStorage.setItem(memberKey, JSON.stringify(member))
+
+  if (accessCode) {
+    localStorage.setItem(memberAccessCodeKey, accessCode)
+  }
 }
 
 export function logout() {
   localStorage.removeItem(authKey)
   localStorage.removeItem(memberKey)
+  localStorage.removeItem(memberAccessCodeKey)
 }
 
 export function isAuthenticated() {

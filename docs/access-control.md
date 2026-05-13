@@ -73,6 +73,23 @@ Field: `member_number`
 | --- |
 | Public-facing member ID shown on the digital member card, for example `NFC-123456`. |
 
+Editable profile fields:
+
+| Field | Meaning |
+| --- | --- |
+| `bio` | Short member/car bio shown in the private member profile. |
+| `instagram` | Member Instagram handle. |
+| `car_model` | Current car model shown in profile, garage and card contexts. |
+| `car_setup` | Full setup description. |
+| `car_specs` | Technical specs such as year, version, engine, wheels and tires. |
+| `car_mods` | Current modification list. |
+| `gallery_urls` | Up to 6 public image URLs for the member car gallery. |
+| `profile_updated_at` | Last profile edit timestamp. |
+
+Profile edits use the member UUID plus the stored individual `access_code`.
+The current MVP keeps that code locally after login so the member can update
+their own profile without a Supabase Auth account.
+
 ## Applications
 
 Table: `public.applications`

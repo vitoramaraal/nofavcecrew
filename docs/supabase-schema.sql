@@ -33,6 +33,10 @@ create table if not exists public.members (
   whatsapp text,
   car_model text,
   car_setup text,
+  bio text,
+  car_specs text,
+  car_mods text,
+  gallery_urls jsonb not null default '[]'::jsonb,
   image_url text,
   member_photo_url text,
   member_photo_path text,
@@ -42,6 +46,7 @@ create table if not exists public.members (
   status text not null default 'active'
     check (status in ('active', 'inactive')),
   member_number text unique not null,
+  profile_updated_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -50,6 +55,21 @@ alter table public.members
 
 alter table public.members
   add column if not exists access_code text;
+
+alter table public.members
+  add column if not exists bio text;
+
+alter table public.members
+  add column if not exists car_specs text;
+
+alter table public.members
+  add column if not exists car_mods text;
+
+alter table public.members
+  add column if not exists gallery_urls jsonb not null default '[]'::jsonb;
+
+alter table public.members
+  add column if not exists profile_updated_at timestamptz;
 
 alter table public.members
   alter column role set default 'member';
@@ -333,11 +353,16 @@ returns table (
   instagram text,
   car_model text,
   car_setup text,
+  bio text,
+  car_specs text,
+  car_mods text,
+  gallery_urls jsonb,
   image_url text,
   member_photo_url text,
   member_photo_path text,
   role text,
   member_number text,
+  profile_updated_at timestamptz,
   created_at timestamptz
 )
 language sql
@@ -350,11 +375,16 @@ as $$
     members.instagram,
     members.car_model,
     members.car_setup,
+    members.bio,
+    members.car_specs,
+    members.car_mods,
+    members.gallery_urls,
     members.image_url,
     members.member_photo_url,
     members.member_photo_path,
     members.role,
     members.member_number,
+    members.profile_updated_at,
     members.created_at
   from public.members
   where members.status = 'active'
@@ -372,12 +402,17 @@ returns table (
   instagram text,
   car_model text,
   car_setup text,
+  bio text,
+  car_specs text,
+  car_mods text,
+  gallery_urls jsonb,
   image_url text,
   member_photo_url text,
   member_photo_path text,
   status text,
   role text,
   member_number text,
+  profile_updated_at timestamptz,
   created_at timestamptz
 )
 language sql
@@ -391,12 +426,17 @@ as $$
     members.instagram,
     members.car_model,
     members.car_setup,
+    members.bio,
+    members.car_specs,
+    members.car_mods,
+    members.gallery_urls,
     members.image_url,
     members.member_photo_url,
     members.member_photo_path,
     members.status,
     members.role,
     members.member_number,
+    members.profile_updated_at,
     members.created_at
   from public.members
   where members.status = 'active'
@@ -413,11 +453,16 @@ returns table (
   instagram text,
   car_model text,
   car_setup text,
+  bio text,
+  car_specs text,
+  car_mods text,
+  gallery_urls jsonb,
   image_url text,
   member_photo_url text,
   member_photo_path text,
   role text,
   member_number text,
+  profile_updated_at timestamptz,
   created_at timestamptz
 )
 language sql
@@ -431,11 +476,16 @@ as $$
     members.instagram,
     members.car_model,
     members.car_setup,
+    members.bio,
+    members.car_specs,
+    members.car_mods,
+    members.gallery_urls,
     members.image_url,
     members.member_photo_url,
     members.member_photo_path,
     members.role,
     members.member_number,
+    members.profile_updated_at,
     members.created_at
   from public.members
   where members.id = member_id
@@ -443,7 +493,158 @@ as $$
   limit 1;
 $$;
 
-grant execute on function public.get_member_profile(uuid) to anon, authenticated;
+grant execute on function public.get_member_profile(uuid) to authenticated;
+
+create or replace function public.validate_member_session(
+  active_member_id uuid,
+  secret_code text
+)
+returns table (
+  id uuid,
+  application_id uuid,
+  full_name text,
+  instagram text,
+  car_model text,
+  car_setup text,
+  bio text,
+  car_specs text,
+  car_mods text,
+  gallery_urls jsonb,
+  image_url text,
+  member_photo_url text,
+  member_photo_path text,
+  role text,
+  member_number text,
+  profile_updated_at timestamptz,
+  created_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    members.id,
+    members.application_id,
+    members.full_name,
+    members.instagram,
+    members.car_model,
+    members.car_setup,
+    members.bio,
+    members.car_specs,
+    members.car_mods,
+    members.gallery_urls,
+    members.image_url,
+    members.member_photo_url,
+    members.member_photo_path,
+    members.role,
+    members.member_number,
+    members.profile_updated_at,
+    members.created_at
+  from public.members
+  where members.id = active_member_id
+    and members.status = 'active'
+    and members.access_code = secret_code
+  limit 1;
+$$;
+
+grant execute on function public.validate_member_session(uuid, text)
+  to anon, authenticated;
+
+create or replace function public.update_member_profile(
+  active_member_id uuid,
+  secret_code text,
+  profile_bio text,
+  profile_instagram text,
+  profile_car_model text,
+  profile_car_setup text,
+  profile_car_specs text,
+  profile_car_mods text,
+  profile_gallery_urls jsonb
+)
+returns table (
+  id uuid,
+  application_id uuid,
+  full_name text,
+  instagram text,
+  car_model text,
+  car_setup text,
+  bio text,
+  car_specs text,
+  car_mods text,
+  gallery_urls jsonb,
+  image_url text,
+  member_photo_url text,
+  member_photo_path text,
+  role text,
+  member_number text,
+  profile_updated_at timestamptz,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  normalized_gallery jsonb := coalesce(profile_gallery_urls, '[]'::jsonb);
+begin
+  if jsonb_typeof(normalized_gallery) <> 'array' then
+    raise exception 'Gallery must be an array.';
+  end if;
+
+  if jsonb_array_length(normalized_gallery) > 6 then
+    raise exception 'Gallery can have at most 6 images.';
+  end if;
+
+  return query
+  update public.members
+  set
+    bio = nullif(left(trim(coalesce(profile_bio, '')), 500), ''),
+    instagram = nullif(left(trim(coalesce(profile_instagram, '')), 31), ''),
+    car_model = nullif(left(trim(coalesce(profile_car_model, '')), 80), ''),
+    car_setup = nullif(left(trim(coalesce(profile_car_setup, '')), 700), ''),
+    car_specs = nullif(left(trim(coalesce(profile_car_specs, '')), 700), ''),
+    car_mods = nullif(left(trim(coalesce(profile_car_mods, '')), 700), ''),
+    gallery_urls = normalized_gallery,
+    profile_updated_at = now()
+  where members.id = active_member_id
+    and members.status = 'active'
+    and members.access_code = secret_code
+  returning
+    members.id,
+    members.application_id,
+    members.full_name,
+    members.instagram,
+    members.car_model,
+    members.car_setup,
+    members.bio,
+    members.car_specs,
+    members.car_mods,
+    members.gallery_urls,
+    members.image_url,
+    members.member_photo_url,
+    members.member_photo_path,
+    members.role,
+    members.member_number,
+    members.profile_updated_at,
+    members.created_at;
+
+  if not found then
+    raise exception 'Active member not found.';
+  end if;
+end;
+$$;
+
+grant execute on function public.update_member_profile(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  jsonb
+) to anon, authenticated;
 
 create or replace function public.verify_member(member_id uuid)
 returns table (

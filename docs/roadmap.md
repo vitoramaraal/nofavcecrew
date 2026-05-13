@@ -47,6 +47,8 @@ Initial roles:
 - Events
 - Drops
 - Profile
+- Editable member profile
+- Member car specs, mods and gallery
 - Digital member card
 - Internal chat route
 - Persistent chat messages

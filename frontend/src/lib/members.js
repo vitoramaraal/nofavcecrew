@@ -12,12 +12,17 @@ export async function fetchActiveMembers() {
   return data || []
 }
 
-export async function fetchMemberProfile(memberId) {
+export async function fetchMemberProfile(memberId, accessCode) {
   const client = getSupabase()
 
-  const { data, error } = await client.rpc('get_member_profile', {
-    member_id: memberId,
-  })
+  const { data, error } = accessCode
+    ? await client.rpc('validate_member_session', {
+        active_member_id: memberId,
+        secret_code: accessCode,
+      })
+    : await client.rpc('get_member_profile', {
+        member_id: memberId,
+      })
 
   if (error) {
     throw error
