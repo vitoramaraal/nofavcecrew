@@ -72,8 +72,10 @@ Allowed admin panel roles are:
 3. Approval creates a member with role `member` and a unique secret code.
 4. Admin sends the generated code through the WhatsApp link shown in the member card.
 5. Member enters `/members/login` using only the secret code.
-6. The member card QR opens `/verify/:id` and confirms whether the member is active.
-7. `/members/profile` loads only the current logged-in member profile/card.
+6. Protected member routes validate the stored member session against Supabase.
+   If the member is deleted or inactive, local access is cleared.
+7. The member card QR opens `/verify/:id` and confirms whether the member is active.
+8. `/members/profile` loads only the current logged-in member profile/card.
 
 ## Access Flags
 

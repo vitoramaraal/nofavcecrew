@@ -20,10 +20,44 @@ export async function loginWithAccessCode(accessCode) {
     throw new Error('Codigo de acesso invalido.')
   }
 
-  localStorage.setItem(authKey, 'true')
-  localStorage.setItem(memberKey, JSON.stringify(member))
+  saveMemberSession(member)
 
   return member
+}
+
+export async function validateStoredMemberSession() {
+  const currentMember = getCurrentMember()
+
+  if (!currentMember?.id || localStorage.getItem(authKey) !== 'true') {
+    logout()
+    return null
+  }
+
+  const client = getSupabase()
+
+  const { data, error } = await client.rpc('get_member_profile', {
+    member_id: currentMember.id,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  const member = Array.isArray(data) ? data[0] : data
+
+  if (!member) {
+    logout()
+    return null
+  }
+
+  saveMemberSession(member)
+
+  return member
+}
+
+function saveMemberSession(member) {
+  localStorage.setItem(authKey, 'true')
+  localStorage.setItem(memberKey, JSON.stringify(member))
 }
 
 export function logout() {

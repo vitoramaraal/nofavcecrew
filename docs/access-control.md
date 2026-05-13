@@ -54,13 +54,18 @@ Field: `status`
 | Value | Meaning |
 | --- | --- |
 | `active` | Member can log in with their access code and appears in active member views. |
-| `inactive` | Member should not be treated as active. Reserved for suspended/removed access flows. |
+| `inactive` | Member should not be treated as active. The private app validates the stored session against Supabase and blocks access when the member is no longer active. |
 
 Field: `access_code`
 
 | Behavior |
 | --- |
 | Unique secret code generated when an application is approved. This is what the member uses at `/members/login`. It should be sent privately by WhatsApp and not shared. |
+
+The app stores the active member locally after login, but protected member
+routes validate that stored session through `get_member_profile` before opening.
+If the member was deleted or inactivated, local access is cleared and the user
+returns to login.
 
 Field: `member_number`
 

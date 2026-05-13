@@ -15,41 +15,86 @@ import Admin from './pages/Admin'
 
 import SplashScreen from './components/members/SplashScreen'
 
-import { isAuthenticated } from './utils/auth'
+import {
+  isAuthenticated,
+  logout,
+  validateStoredMemberSession,
+} from './utils/auth'
+
+const protectedRoutes = [
+  '/members/dashboard',
+  '/members/garage',
+  '/members/events',
+  '/members/drops',
+  '/members/chat',
+  '/members/profile',
+]
 
 function App() {
   const [loading, setLoading] = useState(true)
+  const [sessionError, setSessionError] = useState('')
 
   const path = window.location.pathname
-  const protectedRoutes = [
-    '/members/dashboard',
-    '/members/garage',
-    '/members/events',
-    '/members/drops',
-    '/members/chat',
-    '/members/profile',
-  ]
+  const isProtectedRoute = protectedRoutes.includes(path)
 
   const shouldRedirectToLogin =
-    protectedRoutes.includes(path) &&
+    isProtectedRoute &&
     !isAuthenticated()
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false)
-    }, 1800)
+    let isMounted = true
 
-    return () => clearTimeout(timer)
-  }, [])
+    async function validateRouteAccess() {
+      setSessionError('')
+
+      const splashDelay = new Promise((resolve) => {
+        setTimeout(resolve, 1800)
+      })
+
+      try {
+        if (isProtectedRoute && isAuthenticated()) {
+          const member = await validateStoredMemberSession()
+
+          if (!member) {
+            return
+          }
+        }
+      } catch (error) {
+        console.error(error)
+
+        if (isMounted) {
+          setSessionError(
+            'Nao foi possivel validar sua sessao. Verifique a conexao e tente novamente.',
+          )
+        }
+      } finally {
+        await splashDelay
+
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void validateRouteAccess()
+
+    return () => {
+      isMounted = false
+    }
+  }, [isProtectedRoute, path])
 
   useEffect(() => {
-    if (!loading && shouldRedirectToLogin) {
+    if (!loading && shouldRedirectToLogin && !sessionError) {
       window.location.href = '/members/login'
     }
-  }, [loading, shouldRedirectToLogin])
+  }, [loading, sessionError, shouldRedirectToLogin])
 
   if (loading) {
     return <SplashScreen />
+  }
+
+  if (sessionError && isProtectedRoute) {
+    return <SessionValidationError message={sessionError} />
   }
 
   if (shouldRedirectToLogin) {
@@ -100,3 +145,47 @@ function App() {
 }
 
 export default App
+
+function SessionValidationError({ message }) {
+  function handleLogout() {
+    logout()
+
+    window.location.href = '/members/login'
+  }
+
+  return (
+    <main className="flex min-h-screen items-center bg-black px-6 text-white">
+      <section className="mx-auto w-full max-w-md rounded-[2rem] border border-white/5 bg-zinc-900/70 p-6">
+        <p className="text-[10px] uppercase tracking-[0.45em] text-white/30">
+          NOFVCE
+        </p>
+
+        <h1 className="mt-4 text-4xl font-black uppercase leading-none">
+          Sessao
+        </h1>
+
+        <p className="mt-4 text-sm leading-6 text-white/45">
+          {message}
+        </p>
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-full border border-white/10 bg-white/10 px-5 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-white/45"
+          >
+            Tentar novamente
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="rounded-full border border-red-500/20 bg-red-500/10 px-5 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-red-300"
+          >
+            Sair
+          </button>
+        </div>
+      </section>
+    </main>
+  )
+}

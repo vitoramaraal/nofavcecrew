@@ -18,6 +18,7 @@ MVP foundation completed:
 - WhatsApp code handoff from admin
 - Initial roles: founder, admin, moderator, member
 - Private members area
+- Member session validation against Supabase on protected routes
 - Garage, events, drops, profile and chat routes
 - Persistent internal chat table
 - QR verification route for member cards
