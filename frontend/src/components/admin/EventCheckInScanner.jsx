@@ -8,6 +8,7 @@ function EventCheckInScanner({
   onCheckIn,
 }) {
   const [selectedEventId, setSelectedEventId] = useState('')
+  const [selectedMemberId, setSelectedMemberId] = useState('')
   const [manualCode, setManualCode] = useState('')
   const [scanning, setScanning] = useState(false)
   const [status, setStatus] = useState('')
@@ -23,6 +24,9 @@ function EventCheckInScanner({
   )
   const activeEventId = selectedEventId || availableEvents[0]?.id || ''
   const activeEvent = availableEvents.find((event) => event.id === activeEventId)
+  const activeMembers = [...members].sort((firstMember, secondMember) =>
+    (firstMember.full_name || '').localeCompare(secondMember.full_name || ''),
+  )
   const canUseCamera =
     typeof window !== 'undefined' &&
     'BarcodeDetector' in window &&
@@ -52,8 +56,8 @@ function EventCheckInScanner({
     }
 
     if (!canUseCamera) {
-      setError(
-        'Este navegador nao suporta scanner por camera. Use o campo manual.',
+      setStatus(
+        'Camera indisponivel neste navegador. Use a selecao manual abaixo.',
       )
       return
     }
@@ -126,7 +130,7 @@ function EventCheckInScanner({
   async function handleManualSubmit(event) {
     event.preventDefault()
 
-    await handleScannedValue(manualCode)
+    await handleScannedValue(manualCode || selectedMemberId)
   }
 
   async function handleScannedValue(value) {
@@ -141,9 +145,7 @@ function EventCheckInScanner({
       return
     }
 
-    const member = members.find(
-      (item) => item.id === memberId || item.member_number === memberId,
-    )
+    const member = findMemberByCode(members, memberId)
 
     if (!member) {
       setError('QR lido, mas membro nao encontrado no painel.')
@@ -157,6 +159,7 @@ function EventCheckInScanner({
     try {
       await onCheckIn(activeEvent, member)
       setManualCode('')
+      setSelectedMemberId('')
       setStatus(`Check-in confirmado: ${member.full_name}.`)
     } catch (checkInError) {
       console.error(checkInError)
@@ -212,12 +215,24 @@ function EventCheckInScanner({
           </select>
 
           <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-white/5 bg-black/60">
-            <video
-              ref={videoRef}
-              muted
-              playsInline
-              className="aspect-video w-full object-cover"
-            />
+            {canUseCamera ? (
+              <video
+                ref={videoRef}
+                muted
+                playsInline
+                className="aspect-video w-full object-cover"
+              />
+            ) : (
+              <div className="flex aspect-video flex-col items-center justify-center px-5 text-center">
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-white/45">
+                  Camera indisponivel
+                </p>
+                <p className="mt-3 max-w-sm text-xs leading-5 text-white/30">
+                  Alguns navegadores bloqueiam camera fora de HTTPS ou nao
+                  suportam leitura de QR. O check-in manual continua liberado.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="mt-5 flex flex-wrap gap-3">
@@ -241,17 +256,47 @@ function EventCheckInScanner({
             )}
           </div>
 
-          <form onSubmit={handleManualSubmit} className="mt-5 flex gap-3">
-            <input
-              value={manualCode}
-              onChange={(event) => setManualCode(event.target.value)}
-              placeholder="/verify/... ou UUID do membro"
-              className="min-w-0 flex-1 rounded-full border border-white/5 bg-black/60 px-4 py-3 text-sm text-white outline-none placeholder:text-white/25"
-            />
+          <form
+            onSubmit={handleManualSubmit}
+            className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto]"
+          >
+            <div className="grid min-w-0 flex-1 gap-3 md:grid-cols-2">
+              <select
+                value={selectedMemberId}
+                onChange={(event) => {
+                  setSelectedMemberId(event.target.value)
+                  setManualCode('')
+                }}
+                disabled={disabled || activeMembers.length === 0}
+                className="min-w-0 rounded-full border border-white/5 bg-black/60 px-4 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                <option value="">Selecionar membro</option>
+
+                {activeMembers.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.full_name} / {member.member_number || 'NOFVCE'}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                value={manualCode}
+                onChange={(event) => {
+                  setManualCode(event.target.value)
+                  setSelectedMemberId('')
+                }}
+                placeholder="Codigo, numero ou link /verify"
+                className="min-w-0 rounded-full border border-white/5 bg-black/60 px-4 py-3 text-sm text-white outline-none placeholder:text-white/25"
+              />
+            </div>
 
             <button
               type="submit"
-              disabled={disabled || !manualCode.trim() || !activeEvent}
+              disabled={
+                disabled ||
+                (!manualCode.trim() && !selectedMemberId) ||
+                !activeEvent
+              }
               className="rounded-full border border-white/10 bg-white/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-white/45 disabled:cursor-not-allowed disabled:opacity-30"
             >
               Check
@@ -296,6 +341,26 @@ function extractMemberId(value) {
   }
 
   return cleanValue
+}
+
+function findMemberByCode(members, value) {
+  const cleanValue = String(value || '').trim().toLowerCase()
+
+  if (!cleanValue) return null
+
+  return members.find((member) => {
+    const memberValues = [
+      member.id,
+      member.member_number,
+      member.access_code,
+      member.full_name,
+    ]
+
+    return memberValues.some(
+      (memberValue) =>
+        String(memberValue || '').trim().toLowerCase() === cleanValue,
+    )
+  })
 }
 
 export default EventCheckInScanner
