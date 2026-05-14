@@ -22,7 +22,9 @@ MVP foundation completed:
 - Editable member profile with bio, setup, specs, mods and gallery
 - Garage, events, drops, feed, profile and chat routes
 - Persistent internal chat table
+- Realtime/fallback sync for internal chat
 - Private feed with photos, captions, likes and comments
+- Realtime/fallback sync for private feed
 - Admin moderation for feed posts, feed comments and chat messages
 - Event tables with member RSVP and admin check-in
 - Admin camera/manual scanner for event check-in from member card QR
@@ -36,7 +38,6 @@ MVP foundation completed:
 
 ## High Priority
 
-- Add realtime updates to internal chat and feed.
 - Add event detail pages with media and participant notes.
 - Surface advanced profile data in garage cards and future profile views.
 - Move admin write actions to Supabase Edge Functions before larger production scale.

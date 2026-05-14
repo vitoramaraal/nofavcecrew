@@ -52,8 +52,10 @@ Initial roles:
 - Digital member card
 - Internal chat route
 - Persistent chat messages
+- Realtime/fallback chat sync
 - Private feed MVP
 - Photo posts, captions, likes and comments
+- Realtime/fallback feed sync
 - Admin feed/chat moderation panel
 - Event MVP
 - Member RSVP
@@ -65,8 +67,6 @@ Initial roles:
 
 ## Phase 2 - Community
 
-- Realtime internal chat
-- Realtime private feed
 - Member-only access rules
 - Advanced member profiles
 - Car galleries

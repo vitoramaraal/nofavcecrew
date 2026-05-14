@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import MobileAppLayout from '../../components/members/MobileAppLayout'
 import PageTransition from '../../components/PageTransition'
 import { createChatMessage, fetchChatMessages } from '../../lib/chat'
+import { getSupabase } from '../../lib/supabase'
 import { getCurrentMember, getStoredAccessCode } from '../../utils/auth'
 
 function Chat() {
@@ -11,13 +12,20 @@ function Chat() {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const currentMember = getCurrentMember()
+  const currentMemberId = currentMember?.id || ''
   const accessCode = getStoredAccessCode()
 
-  async function loadMessages() {
+  const loadMessages = useCallback(async () => {
+    if (!currentMemberId || !accessCode) {
+      setError('Sessao de membro invalida.')
+      setLoading(false)
+      return
+    }
+
     setError('')
 
     try {
-      const data = await fetchChatMessages(currentMember?.id, accessCode)
+      const data = await fetchChatMessages(currentMemberId, accessCode)
 
       setMessages(data)
     } catch (chatError) {
@@ -26,7 +34,7 @@ function Chat() {
     }
 
     setLoading(false)
-  }
+  }, [accessCode, currentMemberId])
 
   async function sendMessage(event) {
     event.preventDefault()
@@ -35,7 +43,7 @@ function Chat() {
 
     if (!text || sending) return
 
-    if (!currentMember?.id || !accessCode) {
+    if (!currentMemberId || !accessCode) {
       setError('Sessao de membro invalida.')
       return
     }
@@ -44,7 +52,7 @@ function Chat() {
     setError('')
 
     try {
-      await createChatMessage(currentMember.id, accessCode, text)
+      await createChatMessage(currentMemberId, accessCode, text)
       setMessage('')
       await loadMessages()
     } catch (chatError) {
@@ -56,34 +64,46 @@ function Chat() {
   }
 
   useEffect(() => {
-    let isMounted = true
-
-    async function loadInitialMessages() {
-      try {
-        const data = await fetchChatMessages(currentMember?.id, accessCode)
-
-        if (!isMounted) return
-
-        setMessages(data)
-      } catch (chatError) {
-        console.error(chatError)
-
-        if (!isMounted) return
-
-        setError('Nao foi possivel carregar o chat.')
-      }
-
-      if (isMounted) {
-        setLoading(false)
-      }
-    }
-
-    void loadInitialMessages()
+    const initialLoad = window.setTimeout(() => {
+      void loadMessages()
+    }, 0)
 
     return () => {
-      isMounted = false
+      window.clearTimeout(initialLoad)
     }
-  }, [accessCode, currentMember?.id])
+  }, [loadMessages])
+
+  useEffect(() => {
+    if (!currentMemberId || !accessCode) return undefined
+
+    const client = getSupabase()
+    let refreshTimer = 0
+
+    function scheduleRefresh() {
+      window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => {
+        void loadMessages()
+      }, 300)
+    }
+
+    const channel = client
+      .channel(`nofvce-chat-${currentMemberId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'chat_messages' },
+        scheduleRefresh,
+      )
+      .subscribe()
+    const fallbackInterval = window.setInterval(() => {
+      void loadMessages()
+    }, 30000)
+
+    return () => {
+      window.clearTimeout(refreshTimer)
+      window.clearInterval(fallbackInterval)
+      void client.removeChannel(channel)
+    }
+  }, [accessCode, currentMemberId, loadMessages])
 
   return (
     <MobileAppLayout title="Chat">

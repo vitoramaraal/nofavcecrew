@@ -110,15 +110,16 @@ Initial roles:
 
 The `/members/chat` route stores messages in the `chat_messages` table. It is
 member-only through the app route guard and member/code RPC validation. The
-current MVP uses manual sync after sending or pressing `Sync`; realtime can be
-enabled later.
+current MVP subscribes to Supabase changes while the chat is open and also keeps
+a light fallback sync. The manual `Sync` button remains available.
 
 ## Private Feed
 
 The `/members/feed` route stores posts in `feed_posts`, likes in `feed_likes`
 and comments in `feed_comments`. Posts can include up to 4 images, a caption,
 likes and comments. Feed reads and writes validate the current member UUID plus
-the stored secret `access_code`.
+the stored secret `access_code`. The feed subscribes to Supabase changes while
+open and also keeps a light fallback sync.
 
 The admin panel includes a `Moderacao` tab for founder/admin/moderator users.
 It lists recent feed posts, feed comments and chat messages. Moderators can

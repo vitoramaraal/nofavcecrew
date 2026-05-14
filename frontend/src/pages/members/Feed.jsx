@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import MobileAppLayout from '../../components/members/MobileAppLayout'
 import PageTransition from '../../components/PageTransition'
 import {
@@ -9,6 +9,7 @@ import {
   uploadFeedImage,
   validateFeedImage,
 } from '../../lib/feed'
+import { getSupabase } from '../../lib/supabase'
 import { getCurrentMember, getStoredAccessCode } from '../../utils/auth'
 
 const maxPostImages = 4
@@ -25,6 +26,7 @@ function Feed() {
   const [success, setSuccess] = useState('')
 
   const currentMember = getCurrentMember()
+  const currentMemberId = currentMember?.id || ''
   const accessCode = getStoredAccessCode()
   const previews = useMemo(
     () =>
@@ -35,8 +37,8 @@ function Feed() {
     [postFiles],
   )
 
-  async function loadFeed(showLoading = true) {
-    if (!currentMember?.id || !accessCode) {
+  const loadFeed = useCallback(async (showLoading = true) => {
+    if (!currentMemberId || !accessCode) {
       setError('Sessao de membro invalida.')
       setLoading(false)
       return
@@ -49,7 +51,7 @@ function Feed() {
     setError('')
 
     try {
-      const data = await fetchFeedPosts(currentMember.id, accessCode)
+      const data = await fetchFeedPosts(currentMemberId, accessCode)
 
       setPosts(data)
     } catch (feedError) {
@@ -58,7 +60,7 @@ function Feed() {
     }
 
     setLoading(false)
-  }
+  }, [accessCode, currentMemberId])
 
   function handleFileChange(event) {
     const selectedFiles = Array.from(event.target.files || [])
@@ -96,7 +98,7 @@ function Feed() {
       return
     }
 
-    if (!currentMember?.id || !accessCode) {
+    if (!currentMemberId || !accessCode) {
       setError('Sessao de membro invalida.')
       return
     }
@@ -109,10 +111,10 @@ function Feed() {
       const imageUrls = []
 
       for (const file of postFiles) {
-        imageUrls.push(await uploadFeedImage(currentMember.id, file))
+        imageUrls.push(await uploadFeedImage(currentMemberId, file))
       }
 
-      await createFeedPost(currentMember.id, accessCode, body, imageUrls)
+      await createFeedPost(currentMemberId, accessCode, body, imageUrls)
       setPostBody('')
       setPostFiles([])
       setSuccess('Post publicado.')
@@ -126,13 +128,13 @@ function Feed() {
   }
 
   async function handleToggleLike(postId) {
-    if (busyPostId || !currentMember?.id || !accessCode) return
+    if (busyPostId || !currentMemberId || !accessCode) return
 
     setBusyPostId(postId)
     setError('')
 
     try {
-      await toggleFeedPostLike(currentMember.id, accessCode, postId)
+      await toggleFeedPostLike(currentMemberId, accessCode, postId)
       await loadFeed(false)
     } catch (likeError) {
       console.error(likeError)
@@ -147,13 +149,13 @@ function Feed() {
 
     const body = (comments[postId] || '').trim()
 
-    if (!body || busyPostId || !currentMember?.id || !accessCode) return
+    if (!body || busyPostId || !currentMemberId || !accessCode) return
 
     setBusyPostId(postId)
     setError('')
 
     try {
-      await createFeedPostComment(currentMember.id, accessCode, postId, body)
+      await createFeedPostComment(currentMemberId, accessCode, postId, body)
       setComments((current) => ({ ...current, [postId]: '' }))
       await loadFeed(false)
     } catch (commentError) {
@@ -165,43 +167,56 @@ function Feed() {
   }
 
   useEffect(() => {
-    let isMounted = true
-
-    async function loadInitialFeed() {
-      if (!currentMember?.id || !accessCode) {
-        if (isMounted) {
-          setError('Sessao de membro invalida.')
-          setLoading(false)
-        }
-
-        return
-      }
-
-      try {
-        const data = await fetchFeedPosts(currentMember.id, accessCode)
-
-        if (!isMounted) return
-
-        setPosts(data)
-      } catch (feedError) {
-        console.error(feedError)
-
-        if (!isMounted) return
-
-        setError('Nao foi possivel carregar o feed.')
-      }
-
-      if (isMounted) {
-        setLoading(false)
-      }
-    }
-
-    void loadInitialFeed()
+    const initialLoad = window.setTimeout(() => {
+      void loadFeed()
+    }, 0)
 
     return () => {
-      isMounted = false
+      window.clearTimeout(initialLoad)
     }
-  }, [accessCode, currentMember?.id])
+  }, [loadFeed])
+
+  useEffect(() => {
+    if (!currentMemberId || !accessCode) return undefined
+
+    const client = getSupabase()
+    let refreshTimer = 0
+
+    function scheduleRefresh() {
+      window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => {
+        void loadFeed(false)
+      }, 400)
+    }
+
+    const channel = client
+      .channel(`nofvce-feed-${currentMemberId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'feed_posts' },
+        scheduleRefresh,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'feed_likes' },
+        scheduleRefresh,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'feed_comments' },
+        scheduleRefresh,
+      )
+      .subscribe()
+    const fallbackInterval = window.setInterval(() => {
+      void loadFeed(false)
+    }, 30000)
+
+    return () => {
+      window.clearTimeout(refreshTimer)
+      window.clearInterval(fallbackInterval)
+      void client.removeChannel(channel)
+    }
+  }, [accessCode, currentMemberId, loadFeed])
 
   useEffect(
     () => () => {
