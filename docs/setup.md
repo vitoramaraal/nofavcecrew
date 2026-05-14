@@ -82,6 +82,19 @@ Allowed admin panel roles are:
     and `/members/garage` validate the stored member UUID plus secret code
     before returning private crew content.
 
+## Candidate Application Troubleshooting
+
+If the candidate sees success but the admin panel does not show the application:
+
+1. Run the full `docs/supabase-schema.sql` again in Supabase.
+2. Confirm the admin Auth user exists in `public.admin_users`.
+3. Login again at `/admin` and press `Sync`.
+
+The application form uses `public.create_application` when available. If that
+function is missing, the app falls back to the older direct insert flow, but the
+updated schema is recommended because the RPC confirms that Supabase created the
+application row.
+
 ## Access Flags
 
 The detailed access rules live in `docs/access-control.md`.

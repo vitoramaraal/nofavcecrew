@@ -109,8 +109,6 @@ function Admin() {
       const [
         { data: applicationsData, error: applicationsError },
         { data: membersData, error: membersError },
-        { data: eventsData, error: eventsError },
-        { data: eventRsvpsData, error: eventRsvpsError },
       ] = await Promise.all([
         client
           .from('applications')
@@ -118,14 +116,6 @@ function Admin() {
           .order('created_at', { ascending: false }),
         client
           .from('members')
-          .select('*')
-          .order('created_at', { ascending: false }),
-        client
-          .from('crew_events')
-          .select('*')
-          .order('starts_at', { ascending: true }),
-        client
-          .from('event_rsvps')
           .select('*')
           .order('created_at', { ascending: false }),
       ])
@@ -138,16 +128,33 @@ function Admin() {
         throw membersError
       }
 
-      if (eventsError) {
-        throw eventsError
-      }
-
-      if (eventRsvpsError) {
-        throw eventRsvpsError
-      }
-
       setApplications(applicationsData || [])
       setMembers(membersData || [])
+
+      const [
+        { data: eventsData, error: eventsError },
+        { data: eventRsvpsData, error: eventRsvpsError },
+      ] = await Promise.all([
+        client
+          .from('crew_events')
+          .select('*')
+          .order('starts_at', { ascending: true }),
+        client
+          .from('event_rsvps')
+          .select('*')
+          .order('created_at', { ascending: false }),
+      ])
+
+      if (eventsError || eventRsvpsError) {
+        console.error(eventsError || eventRsvpsError)
+        setEvents([])
+        setEventRsvps([])
+        setError(
+          'Candidaturas e membros carregados. Eventos ainda precisam do schema atualizado.',
+        )
+        return
+      }
+
       setEvents(eventsData || [])
       setEventRsvps(eventRsvpsData || [])
     } catch (loadError) {

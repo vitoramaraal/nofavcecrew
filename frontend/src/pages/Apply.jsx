@@ -24,10 +24,10 @@ function Apply() {
     const { name, value } = event.target
     const nextValue = formatFieldValue(name, value)
 
-    setFormData({
-      ...formData,
+    setFormData((current) => ({
+      ...current,
       [name]: nextValue,
-    })
+    }))
 
     if (error) {
       setError('')
@@ -38,12 +38,14 @@ function Apply() {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
     const maxSize = 5 * 1024 * 1024
 
+    if (!file) return 'Selecione uma imagem.'
+
     if (!allowedTypes.includes(file.type)) {
-      return 'Formato inválido. Use JPG, PNG ou WEBP.'
+      return 'Formato invalido. Use JPG, PNG ou WEBP.'
     }
 
     if (file.size > maxSize) {
-      return 'A imagem deve ter no máximo 5MB.'
+      return 'A imagem deve ter no maximo 5MB.'
     }
 
     return ''
@@ -65,6 +67,7 @@ function Apply() {
       setError(imageError)
       setMemberPreview(null)
       setMemberFile(null)
+      event.target.value = ''
       return
     }
 
@@ -89,6 +92,7 @@ function Apply() {
       setError(imageError)
       setCarPreview(null)
       setCarFile(null)
+      event.target.value = ''
       return
     }
 
@@ -100,7 +104,10 @@ function Apply() {
   async function uploadPhoto(file, folder) {
     const client = getSupabase()
     const fileExtension = file.name.split('.').pop()
-    const fileName = `${folder}-${Date.now()}.${fileExtension}`
+    const randomId =
+      globalThis.crypto?.randomUUID?.() ||
+      Math.random().toString(36).slice(2)
+    const fileName = `${folder}-${Date.now()}-${randomId}.${fileExtension}`
     const filePath = `${folder}/${fileName}`
 
     const { error: uploadError } = await client.storage
@@ -124,10 +131,55 @@ function Apply() {
     }
   }
 
+  async function saveApplication(applicationPayload) {
+    const client = getSupabase()
+
+    const { data, error: rpcError } = await client.rpc('create_application', {
+      candidate_full_name: applicationPayload.full_name,
+      candidate_instagram: applicationPayload.instagram,
+      candidate_whatsapp: applicationPayload.whatsapp,
+      candidate_car_model: applicationPayload.car_model,
+      candidate_message: applicationPayload.message || '',
+      candidate_image_name: applicationPayload.image_name,
+      candidate_image_url: applicationPayload.image_url,
+      candidate_image_path: applicationPayload.image_path,
+      candidate_member_photo_url: applicationPayload.member_photo_url,
+      candidate_member_photo_path: applicationPayload.member_photo_path,
+      candidate_identity_rule_confirmed:
+        applicationPayload.identity_rule_confirmed,
+    })
+
+    if (!rpcError) {
+      if (!data) {
+        throw new Error('O banco nao confirmou a candidatura.')
+      }
+
+      return data
+    }
+
+    const isMissingRpc =
+      rpcError.message?.includes('create_application') ||
+      rpcError.message?.includes('schema cache')
+
+    if (!isMissingRpc) {
+      throw rpcError
+    }
+
+    const { error: insertError } = await client
+      .from('applications')
+      .insert([applicationPayload])
+
+    if (insertError) {
+      throw insertError
+    }
+
+    return 'legacy-insert'
+  }
+
   async function sendEmailNotification(data) {
     const emailFormData = new FormData()
 
-    emailFormData.append('_subject', 'Nova inscrição - NoFvce Crew')
+    emailFormData.append('_subject', 'Nova inscricao - NoFvce Crew')
     emailFormData.append('_captcha', 'false')
     emailFormData.append('_template', 'table')
     emailFormData.append('Nome', data.full_name)
@@ -193,6 +245,15 @@ function Apply() {
         return
       }
 
+      const memberImageError = validateImage(memberFile)
+      const carImageError = validateImage(carFile)
+
+      if (memberImageError || carImageError) {
+        setError(memberImageError || carImageError)
+        setLoading(false)
+        return
+      }
+
       const memberPhoto = await uploadPhoto(memberFile, 'member-photos')
       const carPhoto = await uploadPhoto(carFile, 'applications')
 
@@ -208,23 +269,10 @@ function Apply() {
         status: 'pending',
       }
 
-      const client = getSupabase()
-
-      const { error: supabaseError } = await client
-        .from('applications')
-        .insert([applicationPayload])
-
-      if (supabaseError) {
-        console.error(supabaseError)
-        setError('Erro ao salvar aplicação na plataforma.')
-        setLoading(false)
-        return
-      }
-
+      await saveApplication(applicationPayload)
       await sendEmailNotification(applicationPayload)
 
       setSuccess(true)
-
       setFormData({
         full_name: '',
         instagram: '',
@@ -232,7 +280,6 @@ function Apply() {
         car_model: '',
         message: '',
       })
-
       setIdentityRuleAccepted(false)
       setCarPreview(null)
       setMemberPreview(null)
@@ -242,7 +289,7 @@ function Apply() {
       event.target.reset()
     } catch (err) {
       console.error(err)
-      setError(err?.message || 'Erro inesperado ao enviar aplicação.')
+      setError(err?.message || 'Erro inesperado ao enviar aplicacao.')
     }
 
     setLoading(false)
@@ -279,17 +326,17 @@ function Apply() {
 
         <p className="mt-5 text-sm leading-6 text-white/45">
           Envie seus dados, uma foto sua para a carteirinha e uma foto do carro
-          para análise da NoFvce Crew.
+          para analise da NoFvce Crew.
         </p>
 
         {success && (
           <div className="mt-6 rounded-[1.5rem] border border-emerald-500/20 bg-emerald-500/10 px-5 py-5">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-300">
-              Aplicação enviada
+              Aplicacao enviada
             </p>
 
             <p className="mt-2 text-sm text-emerald-100/70">
-              Sua aplicação foi salva na plataforma e enviada para análise.
+              Sua candidatura foi salva na plataforma e enviada para analise.
             </p>
           </div>
         )}
@@ -365,22 +412,13 @@ function Apply() {
             <PreviewImage src={memberPreview} label="Preview da foto do membro" />
           )}
 
-          <label className="flex gap-3 rounded-2xl border border-white/5 bg-black/50 p-4">
-            <input
-              type="checkbox"
-              checked={identityRuleAccepted}
-              onChange={(event) => {
-                setIdentityRuleAccepted(event.target.checked)
-                setError('')
-              }}
-              className="mt-1 h-5 w-5 shrink-0 accent-white"
-            />
-
-            <span className="text-sm leading-6 text-white/45">
-              Confirmo que a foto da carteirinha nao mostra meu rosto nitido
-              sem estar borrado, coberto por mascara ou anonimo.
-            </span>
-          </label>
+          <IdentityRuleCheck
+            checked={identityRuleAccepted}
+            onChange={(checked) => {
+              setIdentityRuleAccepted(checked)
+              setError('')
+            }}
+          />
 
           <ImageInput
             title="Foto do carro"
@@ -404,7 +442,7 @@ function Apply() {
             disabled={loading}
             className="w-full rounded-full border border-white/10 bg-white/10 px-6 py-4 text-xs font-black uppercase tracking-[0.32em] text-white/40 backdrop-blur-xl transition hover:border-white/20 hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {loading ? 'Enviando...' : 'Enviar aplicação'}
+            {loading ? 'Enviando...' : 'Enviar aplicacao'}
           </button>
         </form>
       </section>
@@ -431,6 +469,42 @@ function ImageInput({ title, description, name, onChange }) {
         onChange={onChange}
         className="mt-4 w-full text-xs text-white/40 file:mr-4 file:rounded-full file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-xs file:font-bold file:uppercase file:text-white/60"
       />
+    </label>
+  )
+}
+
+function IdentityRuleCheck({ checked, onChange }) {
+  return (
+    <label
+      className={
+        checked
+          ? 'flex cursor-pointer gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4'
+          : 'flex cursor-pointer gap-3 rounded-2xl border border-white/5 bg-black/50 p-4'
+      }
+    >
+      <input
+        type="checkbox"
+        name="identity_rule_confirmed"
+        required
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="sr-only"
+      />
+
+      <span
+        className={
+          checked
+            ? 'mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-emerald-300 bg-emerald-300 text-[12px] font-black text-black'
+            : 'mt-1 h-6 w-6 shrink-0 rounded-md border border-white/20 bg-black'
+        }
+      >
+        {checked ? 'OK' : ''}
+      </span>
+
+      <span className="text-sm leading-6 text-white/50">
+        Confirmo que a foto da carteirinha nao mostra meu rosto nitido sem
+        estar borrado, coberto por mascara ou anonimo.
+      </span>
     </label>
   )
 }

@@ -527,6 +527,100 @@ grant select, delete on public.feed_comments to authenticated;
 grant select, insert, update, delete on public.crew_events to authenticated;
 grant select, insert, update, delete on public.event_rsvps to authenticated;
 
+create or replace function public.create_application(
+  candidate_full_name text,
+  candidate_instagram text,
+  candidate_whatsapp text,
+  candidate_car_model text,
+  candidate_message text,
+  candidate_image_name text,
+  candidate_image_url text,
+  candidate_image_path text,
+  candidate_member_photo_url text,
+  candidate_member_photo_path text,
+  candidate_identity_rule_confirmed boolean
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  normalized_full_name text := trim(coalesce(candidate_full_name, ''));
+  normalized_instagram text := trim(coalesce(candidate_instagram, ''));
+  normalized_whatsapp text := trim(coalesce(candidate_whatsapp, ''));
+  normalized_car_model text := trim(coalesce(candidate_car_model, ''));
+  normalized_message text := trim(coalesce(candidate_message, ''));
+  created_application_id uuid;
+begin
+  if char_length(normalized_full_name) < 3
+    or char_length(normalized_instagram) < 3
+    or char_length(normalized_whatsapp) < 10
+    or char_length(normalized_car_model) < 2 then
+    raise exception 'Required application fields are missing.';
+  end if;
+
+  if candidate_identity_rule_confirmed is not true then
+    raise exception 'Identity rule must be confirmed.';
+  end if;
+
+  if coalesce(candidate_image_url, '') = ''
+    or coalesce(candidate_image_path, '') = ''
+    or coalesce(candidate_member_photo_url, '') = ''
+    or coalesce(candidate_member_photo_path, '') = '' then
+    raise exception 'Application photos are required.';
+  end if;
+
+  insert into public.applications (
+    full_name,
+    instagram,
+    whatsapp,
+    car_model,
+    car_setup,
+    message,
+    image_name,
+    image_url,
+    image_path,
+    member_photo_url,
+    member_photo_path,
+    identity_rule_confirmed,
+    status
+  )
+  values (
+    left(normalized_full_name, 80),
+    left(normalized_instagram, 31),
+    left(normalized_whatsapp, 20),
+    left(normalized_car_model, 80),
+    null,
+    nullif(left(normalized_message, 500), ''),
+    left(coalesce(candidate_image_name, ''), 255),
+    candidate_image_url,
+    candidate_image_path,
+    candidate_member_photo_url,
+    candidate_member_photo_path,
+    true,
+    'pending'
+  )
+  returning id into created_application_id;
+
+  return created_application_id;
+end;
+$$;
+
+grant execute on function public.create_application(
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  boolean
+) to anon, authenticated;
+
 create or replace function public.authenticate_member(secret_code text)
 returns table (
   id uuid,
