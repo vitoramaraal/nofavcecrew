@@ -1,18 +1,4 @@
-import { useEffect, useState } from 'react'
-
-import Home from './pages/Home'
-import Apply from './pages/Apply'
-import Verify from './pages/Verify'
-
-import Login from './pages/members/Login'
-import Dashboard from './pages/members/Dashboard'
-import Garage from './pages/members/Garage'
-import Events from './pages/members/Events'
-import Drops from './pages/members/Drops'
-import Feed from './pages/members/Feed'
-import Profile from './pages/members/Profile'
-import Chat from './pages/members/Chat'
-import Admin from './pages/Admin'
+import { lazy, Suspense, useEffect, useState } from 'react'
 
 import SplashScreen from './components/members/SplashScreen'
 
@@ -21,6 +7,19 @@ import {
   logout,
   validateStoredMemberSession,
 } from './utils/auth'
+
+const Home = lazy(() => import('./pages/Home'))
+const Apply = lazy(() => import('./pages/Apply'))
+const Verify = lazy(() => import('./pages/Verify'))
+const Login = lazy(() => import('./pages/members/Login'))
+const Dashboard = lazy(() => import('./pages/members/Dashboard'))
+const Garage = lazy(() => import('./pages/members/Garage'))
+const Events = lazy(() => import('./pages/members/Events'))
+const Drops = lazy(() => import('./pages/members/Drops'))
+const Feed = lazy(() => import('./pages/members/Feed'))
+const Profile = lazy(() => import('./pages/members/Profile'))
+const Chat = lazy(() => import('./pages/members/Chat'))
+const Admin = lazy(() => import('./pages/Admin'))
 
 const protectedRoutes = [
   '/members/dashboard',
@@ -103,51 +102,33 @@ function App() {
     return null
   }
 
+  let routeContent = <Home />
+
   if (path === '/apply') {
-    return <Apply />
+    routeContent = <Apply />
+  } else if (path.startsWith('/verify/')) {
+    routeContent = <Verify />
+  } else if (path === '/members' || path === '/members/login') {
+    routeContent = <Login />
+  } else if (path === '/members/dashboard') {
+    routeContent = <Dashboard />
+  } else if (path === '/members/garage') {
+    routeContent = <Garage />
+  } else if (path === '/members/events') {
+    routeContent = <Events />
+  } else if (path === '/members/drops') {
+    routeContent = <Drops />
+  } else if (path === '/members/feed') {
+    routeContent = <Feed />
+  } else if (path === '/members/chat') {
+    routeContent = <Chat />
+  } else if (path === '/members/profile') {
+    routeContent = <Profile />
+  } else if (path === '/admin') {
+    routeContent = <Admin />
   }
 
-  if (path.startsWith('/verify/')) {
-    return <Verify />
-  }
-
-  if (path === '/members' || path === '/members/login') {
-    return <Login />
-  }
-
-  if (path === '/members/dashboard') {
-    return <Dashboard />
-  }
-
-  if (path === '/members/garage') {
-    return <Garage />
-  }
-
-  if (path === '/members/events') {
-    return <Events />
-  }
-
-  if (path === '/members/drops') {
-    return <Drops />
-  }
-
-  if (path === '/members/feed') {
-    return <Feed />
-  }
-
-  if (path === '/members/chat') {
-    return <Chat />
-  }
-
-  if (path === '/members/profile') {
-    return <Profile />
-  }
-
-  if (path === '/admin') {
-    return <Admin />
-  }
-
-  return <Home />
+  return <Suspense fallback={<SplashScreen />}>{routeContent}</Suspense>
 }
 
 export default App

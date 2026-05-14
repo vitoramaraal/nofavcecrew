@@ -34,6 +34,7 @@ MVP foundation completed:
 - Private profile page scoped to current member
 - Digital member card
 - PWA manifest and service worker
+- Route-level code splitting for lighter initial bundle
 - Setup, schema and cleanup docs
 
 ## High Priority
