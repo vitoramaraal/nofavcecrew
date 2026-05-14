@@ -61,6 +61,8 @@ function Admin() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [activeAdminSection, setActiveAdminSection] = useState('applications')
+  const [expandedMemberId, setExpandedMemberId] = useState('')
   const [eventForm, setEventForm] = useState({
     title: '',
     description: '',
@@ -74,6 +76,9 @@ function Admin() {
   const pending = applications.filter((item) => item.status === 'pending').length
   const approved = applications.filter((item) => item.status === 'approved').length
   const rejected = applications.filter((item) => item.status === 'rejected').length
+  const pendingApplications = applications.filter(
+    (item) => item.status === 'pending',
+  )
   const canReviewApplications = panelRoles.includes(adminRole)
   const canManageMembers = managerRoles.includes(adminRole)
   const canManageEvents = canManageMembers
@@ -869,90 +874,102 @@ function Admin() {
           </div>
         )}
 
-        <h2 className="mt-10 text-2xl font-black uppercase">Eventos</h2>
-
-        {canManageEvents && (
-          <form
-            onSubmit={createEvent}
-            className="mt-6 grid gap-4 rounded-[2rem] border border-white/5 bg-zinc-900/60 p-5 backdrop-blur-xl md:grid-cols-2"
-          >
-            <input
-              name="title"
-              value={eventForm.title}
-              onChange={handleEventFormChange}
-              placeholder="Nome do evento"
-              className="rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
-            />
-
-            <input
-              name="location"
-              value={eventForm.location}
-              onChange={handleEventFormChange}
-              placeholder="Local"
-              className="rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
-            />
-
-            <input
-              name="starts_at"
-              type="datetime-local"
-              value={eventForm.starts_at}
-              onChange={handleEventFormChange}
-              className="rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none"
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <select
-                name="status"
-                value={eventForm.status}
-                onChange={handleEventFormChange}
-                className="rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none"
-              >
-                {eventStatuses.map((status) => (
-                  <option key={status} value={status}>
-                    {getEventStatusLabel(status)}
-                  </option>
-                ))}
-              </select>
-
-              <input
-                name="capacity"
-                type="number"
-                min="1"
-                value={eventForm.capacity}
-                onChange={handleEventFormChange}
-                placeholder="Vagas"
-                className="rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
-              />
-            </div>
-
-            <textarea
-              name="description"
-              value={eventForm.description}
-              onChange={handleEventFormChange}
-              placeholder="Descricao"
-              rows="4"
-              className="resize-none rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25 md:col-span-2"
-            />
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="rounded-full border border-white/10 bg-white/10 px-5 py-4 text-[10px] font-black uppercase tracking-[0.28em] text-white/45 transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-30 md:col-span-2"
-            >
-              Criar evento
-            </button>
-          </form>
-        )}
-
-        <EventCheckInScanner
-          events={events}
-          members={members}
-          disabled={loading}
-          canScan={canReviewApplications}
-          onCheckIn={(event, member) => checkInMember(event, member, true)}
+        <AdminSectionNav
+          active={activeAdminSection}
+          counts={{
+            applications: pending,
+            members: members.length,
+            events: events.length,
+          }}
+          onChange={setActiveAdminSection}
         />
 
-        <div className="mt-6 grid gap-5 md:grid-cols-2">
+        {activeAdminSection === 'events' && (
+          <>
+            <h2 className="mt-10 text-2xl font-black uppercase">Eventos</h2>
+
+            {canManageEvents && (
+              <form
+                onSubmit={createEvent}
+                className="mt-6 grid gap-4 rounded-[2rem] border border-white/5 bg-zinc-900/60 p-5 backdrop-blur-xl md:grid-cols-2"
+              >
+                <input
+                  name="title"
+                  value={eventForm.title}
+                  onChange={handleEventFormChange}
+                  placeholder="Nome do evento"
+                  className="rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
+                />
+
+                <input
+                  name="location"
+                  value={eventForm.location}
+                  onChange={handleEventFormChange}
+                  placeholder="Local"
+                  className="rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
+                />
+
+                <input
+                  name="starts_at"
+                  type="datetime-local"
+                  value={eventForm.starts_at}
+                  onChange={handleEventFormChange}
+                  className="rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none"
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <select
+                    name="status"
+                    value={eventForm.status}
+                    onChange={handleEventFormChange}
+                    className="rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none"
+                  >
+                    {eventStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {getEventStatusLabel(status)}
+                      </option>
+                    ))}
+                  </select>
+
+                  <input
+                    name="capacity"
+                    type="number"
+                    min="1"
+                    value={eventForm.capacity}
+                    onChange={handleEventFormChange}
+                    placeholder="Vagas"
+                    className="rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25"
+                  />
+                </div>
+
+                <textarea
+                  name="description"
+                  value={eventForm.description}
+                  onChange={handleEventFormChange}
+                  placeholder="Descricao"
+                  rows="4"
+                  className="resize-none rounded-2xl border border-white/5 bg-black/70 px-4 py-4 text-sm text-white outline-none placeholder:text-white/25 md:col-span-2"
+                />
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="rounded-full border border-white/10 bg-white/10 px-5 py-4 text-[10px] font-black uppercase tracking-[0.28em] text-white/45 transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-30 md:col-span-2"
+                >
+                  Criar evento
+                </button>
+              </form>
+            )}
+
+            <EventCheckInScanner
+              events={events}
+              members={members}
+              disabled={loading}
+              canScan={canReviewApplications}
+              onCheckIn={(event, member) => checkInMember(event, member, true)}
+            />
+
+            <div className="mt-6 grid gap-5 md:grid-cols-2">
           {events.length === 0 && !loading && (
             <div className="rounded-[2rem] border border-white/5 bg-zinc-900/60 p-6 text-sm text-white/40">
               Nenhum evento criado.
@@ -1076,236 +1093,279 @@ function Admin() {
               </article>
             )
           })}
-        </div>
-
-        <h2 className="mt-10 text-2xl font-black uppercase">Candidaturas</h2>
-
-        <div className="mt-6 grid gap-5">
-          {applications.length === 0 && !loading && (
-            <div className="rounded-[2rem] border border-white/5 bg-zinc-900/60 p-6 text-sm text-white/40">
-              Nenhuma candidatura encontrada.
             </div>
-          )}
+          </>
+        )}
 
-          {applications.map((item) => (
-            <article
-              key={item.id}
-              className="grid gap-5 rounded-[2rem] border border-white/5 bg-zinc-900/60 p-5 backdrop-blur-xl md:grid-cols-[220px_1fr]"
-            >
-              <div className="overflow-hidden rounded-[1.5rem] border border-white/5 bg-black/60">
-                {item.image_url ? (
-                  <img
-                    src={item.image_url}
-                    alt={item.car_model}
-                    className="h-56 w-full object-cover md:h-full"
-                  />
-                ) : (
-                  <div className="flex h-56 items-center justify-center text-xs uppercase tracking-[0.25em] text-white/25">
-                    Sem foto
-                  </div>
-                )}
-              </div>
+        {activeAdminSection === 'applications' && (
+          <>
+            <h2 className="mt-10 text-2xl font-black uppercase">
+              Candidaturas pendentes
+            </h2>
 
-              <div>
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/25">
-                      Candidate
-                    </p>
-
-                    <h2 className="mt-2 text-3xl font-black uppercase">
-                      {item.full_name}
-                    </h2>
-
-                    <p className="mt-2 text-sm text-white/40">
-                      {item.instagram} - {item.whatsapp}
-                    </p>
-                  </div>
-
-                  <StatusBadge status={item.status} />
+            <div className="mt-6 grid gap-5">
+              {pendingApplications.length === 0 && !loading && (
+                <div className="rounded-[2rem] border border-white/5 bg-zinc-900/60 p-6 text-sm text-white/40">
+                  Nenhuma candidatura pendente.
                 </div>
-
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  <InfoBlock label="Carro" value={item.car_model} />
-                  <InfoBlock label="Setup" value={item.car_setup || '-'} />
-                  <InfoBlock
-                    label="Regra da carteirinha"
-                    value={
-                      item.identity_rule_confirmed
-                        ? 'Confirmada'
-                        : 'Nao confirmada'
-                    }
-                  />
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-white/5 bg-black/40 p-4">
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-white/25">
-                    Mensagem
-                  </p>
-
-                  <p className="mt-3 text-sm leading-6 text-white/50">
-                    {item.message || '-'}
-                  </p>
-                </div>
-
-                <div className="mt-5 flex flex-wrap gap-3">
-                  {item.image_url && (
-                    <a
-                      href={item.image_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-full border border-white/10 bg-black/40 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-white/35 transition hover:bg-white/10 hover:text-white"
-                    >
-                      Ver foto
-                    </a>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => approveApplication(item)}
-                    disabled={loading || item.status === 'approved'}
-                    className="rounded-full border border-white/10 bg-white/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-white/50 transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-30"
-                  >
-                    Aprovar
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => rejectApplication(item)}
-                    disabled={
-                      loading ||
-                      item.status === 'rejected' ||
-                      (!canManageMembers && item.status === 'approved')
-                    }
-                    className="rounded-full border border-white/10 bg-black/40 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-white/35 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
-                  >
-                    Rejeitar
-                  </button>
-
-                  {canManageMembers && (
-                    <button
-                      type="button"
-                      onClick={() => deleteApplication(item)}
-                      disabled={loading}
-                      className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      Apagar
-                    </button>
-                  )}
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-
-        <h2 className="mt-12 text-2xl font-black uppercase">Membros</h2>
-
-        <div className="mt-6 grid gap-5 md:grid-cols-2">
-          {members.length === 0 && !loading && (
-            <div className="rounded-[2rem] border border-white/5 bg-zinc-900/60 p-6 text-sm text-white/40">
-              Nenhum membro encontrado.
-            </div>
-          )}
-
-          {members.map((member) => (
-            <article
-              key={member.id}
-              className="overflow-hidden rounded-[2rem] border border-white/5 bg-zinc-900/60 backdrop-blur-xl"
-            >
-              {member.image_url && (
-                <img
-                  src={member.image_url}
-                  alt={member.car_model}
-                  className="h-56 w-full object-cover"
-                />
               )}
 
-              <div className="p-5">
-                <p className="text-[10px] uppercase tracking-[0.35em] text-white/25">
-                  {member.member_number || 'NOFVCE'}
-                </p>
+              {pendingApplications.map((item) => (
+                <article
+                  key={item.id}
+                  className="grid gap-5 rounded-[2rem] border border-white/5 bg-zinc-900/60 p-5 backdrop-blur-xl md:grid-cols-[220px_1fr]"
+                >
+                  <div className="overflow-hidden rounded-[1.5rem] border border-white/5 bg-black/60">
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.car_model}
+                        className="h-56 w-full object-cover md:h-full"
+                      />
+                    ) : (
+                      <div className="flex h-56 items-center justify-center text-xs uppercase tracking-[0.25em] text-white/25">
+                        Sem foto
+                      </div>
+                    )}
+                  </div>
 
-                <h3 className="mt-2 text-2xl font-black uppercase">
-                  {member.full_name}
-                </h3>
+                  <div>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.35em] text-white/25">
+                          Candidate
+                        </p>
 
-                <p className="mt-2 text-sm text-white/40">
-                  {member.car_model || '-'}
-                </p>
+                        <h2 className="mt-2 text-3xl font-black uppercase">
+                          {item.full_name}
+                        </h2>
 
-                <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                  <InfoBlock label="Cargo" value={member.role || 'member'} />
-                  <InfoBlock
-                    label="Codigo secreto"
-                    value={member.access_code || '-'}
-                  />
-                  <InfoBlock label="WhatsApp" value={member.whatsapp || '-'} />
-                  <InfoBlock label="Instagram" value={member.instagram || '-'} />
-                  <InfoBlock label="Status" value={member.status || '-'} />
-                  <InfoBlock
-                    label="Entrada"
-                    value={
-                      member.created_at
-                        ? new Date(member.created_at).toLocaleDateString(
-                            'pt-BR',
-                          )
-                        : '-'
-                    }
-                  />
+                        <p className="mt-2 text-sm text-white/40">
+                          {item.instagram} - {item.whatsapp}
+                        </p>
+                      </div>
+
+                      <StatusBadge status={item.status} />
+                    </div>
+
+                    <div className="mt-6 grid gap-4 md:grid-cols-2">
+                      <InfoBlock label="Carro" value={item.car_model} />
+                      <InfoBlock label="Setup" value={item.car_setup || '-'} />
+                      <InfoBlock
+                        label="Regra da carteirinha"
+                        value={
+                          item.identity_rule_confirmed
+                            ? 'Confirmada'
+                            : 'Nao confirmada'
+                        }
+                      />
+                    </div>
+
+                    <div className="mt-5 rounded-2xl border border-white/5 bg-black/40 p-4">
+                      <p className="text-[10px] uppercase tracking-[0.3em] text-white/25">
+                        Mensagem
+                      </p>
+
+                      <p className="mt-3 text-sm leading-6 text-white/50">
+                        {item.message || '-'}
+                      </p>
+                    </div>
+
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      {item.image_url && (
+                        <a
+                          href={item.image_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-full border border-white/10 bg-black/40 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-white/35 transition hover:bg-white/10 hover:text-white"
+                        >
+                          Ver foto
+                        </a>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => approveApplication(item)}
+                        disabled={loading}
+                        className="rounded-full border border-white/10 bg-white/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-white/50 transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-30"
+                      >
+                        Aprovar
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => rejectApplication(item)}
+                        disabled={loading}
+                        className="rounded-full border border-white/10 bg-black/40 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-white/35 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+                      >
+                        Rejeitar
+                      </button>
+
+                      {canManageMembers && (
+                        <button
+                          type="button"
+                          onClick={() => deleteApplication(item)}
+                          disabled={loading}
+                          className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-30"
+                        >
+                          Apagar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+
+        {activeAdminSection === 'members' && (
+          <>
+            <h2 className="mt-10 text-2xl font-black uppercase">Membros</h2>
+
+            <div className="mt-6 overflow-hidden rounded-[2rem] border border-white/5 bg-zinc-900/60 backdrop-blur-xl">
+              {members.length === 0 && !loading && (
+                <div className="p-6 text-sm text-white/40">
+                  Nenhum membro encontrado.
                 </div>
+              )}
 
-                <div className="mt-6 rounded-[1.5rem] border border-white/5 bg-black/40 p-4">
-                  <p className="mb-4 text-[10px] uppercase tracking-[0.3em] text-white/25">
-                    Carteirinha
-                  </p>
+              {members.map((member) => {
+                const isExpanded = expandedMemberId === member.id
+                const whatsAppUrl = createWhatsAppUrl(member)
 
-                  <MemberCard member={member} />
-                </div>
+                return (
+                  <article
+                    key={member.id}
+                    className="border-b border-white/5 p-4 last:border-b-0"
+                  >
+                    <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr_auto] lg:items-center">
+                      <div className="min-w-0">
+                        <p className="text-[10px] uppercase tracking-[0.25em] text-red-400">
+                          {member.member_number || 'NOFVCE'}
+                        </p>
 
-                <div className="mt-5 flex flex-wrap gap-3">
-                  {canManageMembers && (
-                    <select
-                      value={member.role || 'member'}
-                      onChange={(event) =>
-                        updateMemberRole(member, event.target.value)
-                      }
-                      disabled={loading}
-                      className="rounded-full border border-white/10 bg-black/40 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/45 outline-none disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      {adminRoles.map((role) => (
-                        <option key={role} value={role}>
-                          {role}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                        <h3 className="mt-1 truncate text-lg font-black uppercase">
+                          {member.full_name}
+                        </h3>
 
-                  {createWhatsAppUrl(member) && (
-                    <a
-                      href={createWhatsAppUrl(member)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-emerald-300 transition hover:bg-emerald-500/20"
-                    >
-                      Enviar codigo
-                    </a>
-                  )}
+                        <p className="mt-1 truncate text-sm text-white/35">
+                          {member.car_model || '-'}
+                        </p>
+                      </div>
 
-                  {canManageMembers && (
-                    <button
-                      type="button"
-                      onClick={() => deleteMember(member)}
-                      disabled={loading}
-                      className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      Apagar membro
-                    </button>
-                  )}
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
+                      <div className="min-w-0 text-sm text-white/45">
+                        <p className="truncate">{member.whatsapp || '-'}</p>
+                        <p className="mt-1 truncate">
+                          {member.instagram || '-'}
+                        </p>
+                      </div>
+
+                      <div className="min-w-0 text-xs text-white/40">
+                        <p className="uppercase tracking-[0.2em]">
+                          {member.role || 'member'} / {member.status || '-'}
+                        </p>
+                        <p className="mt-1 truncate font-mono text-white/60">
+                          {member.access_code || '-'}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 lg:justify-end">
+                        {canManageMembers && (
+                          <select
+                            value={member.role || 'member'}
+                            onChange={(event) =>
+                              updateMemberRole(member, event.target.value)
+                            }
+                            disabled={loading}
+                            className="rounded-full border border-white/10 bg-black/40 px-3 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-white/45 outline-none disabled:cursor-not-allowed disabled:opacity-30"
+                          >
+                            {adminRoles.map((role) => (
+                              <option key={role} value={role}>
+                                {role}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+
+                        {whatsAppUrl && (
+                          <a
+                            href={whatsAppUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300 transition hover:bg-emerald-500/20"
+                          >
+                            Codigo
+                          </a>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedMemberId(isExpanded ? '' : member.id)
+                          }
+                          className="rounded-full border border-white/10 bg-white/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/50 transition hover:bg-white hover:text-black"
+                        >
+                          {isExpanded ? 'Ocultar' : 'Carteira'}
+                        </button>
+
+                        {canManageMembers && (
+                          <button
+                            type="button"
+                            onClick={() => deleteMember(member)}
+                            disabled={loading}
+                            className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-30"
+                          >
+                            Apagar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="mt-4 grid gap-4 rounded-[1.5rem] border border-white/5 bg-black/40 p-4 lg:grid-cols-[360px_1fr]">
+                        <MemberCard member={member} />
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <InfoBlock
+                            label="Cargo"
+                            value={member.role || 'member'}
+                          />
+                          <InfoBlock
+                            label="Codigo secreto"
+                            value={member.access_code || '-'}
+                          />
+                          <InfoBlock
+                            label="WhatsApp"
+                            value={member.whatsapp || '-'}
+                          />
+                          <InfoBlock
+                            label="Instagram"
+                            value={member.instagram || '-'}
+                          />
+                          <InfoBlock
+                            label="Status"
+                            value={member.status || '-'}
+                          />
+                          <InfoBlock
+                            label="Entrada"
+                            value={
+                              member.created_at
+                                ? new Date(member.created_at).toLocaleDateString(
+                                    'pt-BR',
+                                  )
+                                : '-'
+                            }
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </article>
+                )
+              })}
+            </div>
+          </>
+        )}
       </section>
     </main>
   )
@@ -1320,6 +1380,56 @@ function StatCard({ label, value }) {
 
       <h3 className="mt-3 text-4xl font-black">{value}</h3>
     </div>
+  )
+}
+
+function AdminSectionNav({ active, counts, onChange }) {
+  const items = [
+    {
+      id: 'applications',
+      label: 'Candidaturas',
+      count: counts.applications,
+    },
+    {
+      id: 'members',
+      label: 'Membros',
+      count: counts.members,
+    },
+    {
+      id: 'events',
+      label: 'Eventos',
+      count: counts.events,
+    },
+  ]
+
+  return (
+    <nav className="mt-8 grid gap-2 rounded-[2rem] border border-white/5 bg-zinc-900/60 p-2 backdrop-blur-xl md:grid-cols-3">
+      {items.map((item) => {
+        const isActive = active === item.id
+
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onChange(item.id)}
+            className={`flex items-center justify-between rounded-[1.5rem] px-4 py-4 text-left text-[10px] font-black uppercase tracking-[0.24em] transition ${
+              isActive
+                ? 'bg-white text-black'
+                : 'bg-black/30 text-white/35 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <span>{item.label}</span>
+            <span
+              className={`rounded-full px-2 py-1 text-[10px] ${
+                isActive ? 'bg-black/10 text-black' : 'bg-white/10 text-white/45'
+              }`}
+            >
+              {item.count}
+            </span>
+          </button>
+        )
+      })}
+    </nav>
   )
 }
 
