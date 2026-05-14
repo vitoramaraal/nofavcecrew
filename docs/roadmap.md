@@ -59,6 +59,7 @@ Initial roles:
 - Member RSVP
 - Admin event check-in
 - Admin QR scanner for event check-in
+- Attendance CSV export and check-in undo
 - QR member verification route
 - PWA base
 
@@ -73,9 +74,7 @@ Initial roles:
 ## Phase 3 - Events
 
 - Event media and detail pages
-- Participant list
 - Location/map
-- Advanced scanner history
 - Event chat
 - Attendance history
 

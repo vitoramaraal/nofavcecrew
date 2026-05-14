@@ -545,6 +545,54 @@ function Admin() {
     }
   }
 
+  async function resetEventCheckIn(event, member) {
+    if (!canReviewApplications) {
+      setError('Seu cargo nao permite alterar check-in.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Deseja desfazer o check-in de ${member.full_name}?`,
+    )
+
+    if (!confirmed) return
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const client = getSupabase()
+      const { error: updateError } = await client
+        .from('event_rsvps')
+        .update({
+          checked_in_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('event_id', event.id)
+        .eq('member_id', member.id)
+
+      if (updateError) {
+        throw updateError
+      }
+
+      setSuccess(`Check-in removido para ${member.full_name}.`)
+      await loadData()
+    } catch (updateError) {
+      console.error(updateError)
+      setError('Nao foi possivel desfazer o check-in.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function exportEventAttendance(event, participants) {
+    const csv = buildEventAttendanceCsv(event, participants)
+    const fileName = `nofvce-${createSafeSlug(event.title)}-presenca.csv`
+
+    downloadTextFile(fileName, csv)
+  }
+
   async function approveApplication(application) {
     if (!canReviewApplications) {
       setError('Seu cargo nao permite revisar candidaturas.')
@@ -1233,6 +1281,7 @@ function Admin() {
             const checkedIn = participants.filter(
               (rsvp) => rsvp.checked_in_at,
             ).length
+            const pendingCheckIn = Math.max(participants.length - checkedIn, 0)
 
             return (
               <article
@@ -1261,9 +1310,10 @@ function Admin() {
                   {crewEvent.description || '-'}
                 </p>
 
-                <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                <div className="mt-5 grid gap-4 sm:grid-cols-4">
                   <InfoBlock label="RSVP" value={participants.length} />
                   <InfoBlock label="Check-in" value={checkedIn} />
+                  <InfoBlock label="Pendentes" value={pendingCheckIn} />
                   <InfoBlock
                     label="Vagas"
                     value={crewEvent.capacity || 'Livre'}
@@ -1290,21 +1340,54 @@ function Admin() {
                         <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-white/30">
                           {rsvp.member.member_number || 'NOFVCE'}
                         </p>
+
+                        <p className="mt-2 text-xs leading-5 text-white/35">
+                          {rsvp.member.car_model || 'Carro nao informado'}
+                          {rsvp.checked_in_at
+                            ? ` / Check-in ${formatAdminEventDate(
+                                rsvp.checked_in_at,
+                              )}`
+                            : ' / Check-in pendente'}
+                        </p>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => checkInMember(crewEvent, rsvp.member)}
-                        disabled={loading || Boolean(rsvp.checked_in_at)}
-                        className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300 disabled:cursor-not-allowed disabled:opacity-35"
-                      >
-                        {rsvp.checked_in_at ? 'Check-in ok' : 'Check-in'}
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => checkInMember(crewEvent, rsvp.member)}
+                          disabled={loading || Boolean(rsvp.checked_in_at)}
+                          className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300 disabled:cursor-not-allowed disabled:opacity-35"
+                        >
+                          {rsvp.checked_in_at ? 'Check-in ok' : 'Check-in'}
+                        </button>
+
+                        {rsvp.checked_in_at && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              resetEventCheckIn(crewEvent, rsvp.member)
+                            }
+                            disabled={loading}
+                            className="rounded-full border border-white/10 bg-black/40 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/35 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+                          >
+                            Desfazer
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
 
                 <div className="mt-5 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => exportEventAttendance(crewEvent, participants)}
+                    disabled={loading}
+                    className="rounded-full border border-white/10 bg-white/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-white/45 transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    Exportar CSV
+                  </button>
+
                   {canManageEvents && (
                     <select
                       value={crewEvent.status}
@@ -1991,6 +2074,73 @@ function getEventStatusLabel(status) {
       cancelled: 'Cancelado',
     }[status] || status
   )
+}
+
+function buildEventAttendanceCsv(event, participants) {
+  const rows = [
+    [
+      'Evento',
+      'Data do evento',
+      'Nome',
+      'Numero',
+      'Cargo',
+      'Carro',
+      'WhatsApp',
+      'Instagram',
+      'RSVP',
+      'Check-in',
+      'Data do RSVP',
+    ],
+    ...participants.map((rsvp) => [
+      event.title || '',
+      formatAdminEventDate(event.starts_at),
+      rsvp.member.full_name || '',
+      rsvp.member.member_number || '',
+      rsvp.member.role || '',
+      rsvp.member.car_model || '',
+      rsvp.member.whatsapp || '',
+      rsvp.member.instagram || '',
+      rsvp.status || '',
+      rsvp.checked_in_at ? formatAdminEventDate(rsvp.checked_in_at) : '',
+      formatAdminEventDate(rsvp.created_at),
+    ]),
+  ]
+
+  return rows
+    .map((row) => row.map((value) => escapeCsvValue(value)).join(','))
+    .join('\n')
+}
+
+function escapeCsvValue(value) {
+  const normalizedValue = String(value ?? '')
+
+  return `"${normalizedValue.replace(/"/g, '""')}"`
+}
+
+function downloadTextFile(fileName, content) {
+  const blob = new Blob([content], {
+    type: 'text/csv;charset=utf-8;',
+  })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+function createSafeSlug(value) {
+  const slug = String(value || 'evento')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return slug || 'evento'
 }
 
 function formatAdminEventDate(value) {

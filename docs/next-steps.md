@@ -26,6 +26,7 @@ MVP foundation completed:
 - Admin moderation for feed posts, feed comments and chat messages
 - Event tables with member RSVP and admin check-in
 - Admin camera/manual scanner for event check-in from member card QR
+- Admin attendance CSV export and check-in undo
 - QR verification route for member cards
 - Member card PNG export
 - Private profile page scoped to current member

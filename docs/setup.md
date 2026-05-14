@@ -131,7 +131,8 @@ Members can confirm or cancel presence through `event_rsvps` while an event is
 `open`. The admin panel can create events, change status, see confirmed members
 and mark check-in. The admin panel also includes a camera scanner for member
 card QR codes, with a manual `/verify/...` or UUID fallback for browsers that do
-not support camera QR detection.
+not support camera QR detection. Admins can export the event presence list as a
+CSV and undo a mistaken check-in while keeping the RSVP.
 
 ## Checks
 

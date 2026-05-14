@@ -143,7 +143,7 @@ Field: `identity_rule_confirmed`
 | Change member role | Yes | Yes | No | No |
 | Moderate chat/feed content | Yes | Yes | Yes | No |
 | Create/update/delete events | Yes | Yes | No | No |
-| See event RSVP and mark check-in by button/scanner | Yes | Yes | Yes | No |
+| See event RSVP, export presence and mark/undo check-in | Yes | Yes | Yes | No |
 | Access member app with code | If active member | If active member | If active member | Yes |
 | Post, like and comment in private feed | If active member | If active member | If active member | Yes |
 | Confirm/cancel event presence | If active member | If active member | If active member | Yes |
