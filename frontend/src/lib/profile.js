@@ -1,7 +1,14 @@
 import { getSupabase } from './supabase'
 
 const galleryBucket = 'application-photos'
-const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp']
+const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+const allowedImageExtensions = ['jpg', 'jpeg', 'png', 'webp']
+const imageExtensionByType = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+}
 const maxImageSize = 5 * 1024 * 1024
 
 export async function updateMemberProfile(memberId, accessCode, profile) {
@@ -40,8 +47,7 @@ export async function uploadMemberGalleryImage(memberId, file) {
   }
 
   const client = getSupabase()
-  const fileExtension = file.name.split('.').pop()
-  const fileName = `${Date.now()}-${crypto.randomUUID()}.${fileExtension}`
+  const fileName = createGalleryFileName(file)
   const filePath = `member-gallery/${memberId}/${fileName}`
 
   const { error } = await client.storage
@@ -63,7 +69,7 @@ export async function uploadMemberGalleryImage(memberId, file) {
 function validateGalleryImage(file) {
   if (!file) return 'Selecione uma imagem.'
 
-  if (!allowedImageTypes.includes(file.type)) {
+  if (!isAllowedGalleryImage(file)) {
     return 'Formato invalido. Use JPG, PNG ou WEBP.'
   }
 
@@ -72,4 +78,39 @@ function validateGalleryImage(file) {
   }
 
   return ''
+}
+
+function createGalleryFileName(file) {
+  const fileExtension = getGalleryFileExtension(file)
+  const randomId =
+    globalThis.crypto?.randomUUID?.() ||
+    Math.random().toString(36).slice(2)
+
+  return `${Date.now()}-${randomId}.${fileExtension}`
+}
+
+function getGalleryFileExtension(file) {
+  const fileExtension = file.name
+    .split('.')
+    .pop()
+    ?.toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+
+  if (allowedImageExtensions.includes(fileExtension)) {
+    return fileExtension === 'jpeg' ? 'jpg' : fileExtension
+  }
+
+  return imageExtensionByType[file.type] || 'jpg'
+}
+
+function isAllowedGalleryImage(file) {
+  if (allowedImageTypes.includes(file.type)) return true
+
+  const fileExtension = file.name
+    .split('.')
+    .pop()
+    ?.toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+
+  return allowedImageExtensions.includes(fileExtension)
 }
