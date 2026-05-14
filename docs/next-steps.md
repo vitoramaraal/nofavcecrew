@@ -27,6 +27,7 @@ MVP foundation completed:
 - Realtime/fallback sync for private feed
 - Admin moderation for feed posts, feed comments and chat messages
 - Event tables with member RSVP and admin check-in
+- Realtime/fallback sync for member events and RSVP status
 - Admin camera/manual scanner for event check-in from member card QR
 - Admin attendance CSV export and check-in undo
 - QR verification route for member cards

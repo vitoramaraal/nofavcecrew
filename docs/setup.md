@@ -129,11 +129,13 @@ remove content without receiving member deletion or role-management access.
 
 The `/members/events` route lists active crew events from `crew_events`.
 Members can confirm or cancel presence through `event_rsvps` while an event is
-`open`. The admin panel can create events, change status, see confirmed members
-and mark check-in. The admin panel also includes a camera scanner for member
-card QR codes, with a manual `/verify/...` or UUID fallback for browsers that do
-not support camera QR detection. Admins can export the event presence list as a
-CSV and undo a mistaken check-in while keeping the RSVP.
+`open`. The member event screen subscribes to Supabase changes while open and
+keeps a light fallback sync for updated RSVP/check-in status. The admin panel
+can create events, change status, see confirmed members and mark check-in. The
+admin panel also includes a camera scanner for member card QR codes, with a
+manual `/verify/...` or UUID fallback for browsers that do not support camera QR
+detection. Admins can export the event presence list as a CSV and undo a
+mistaken check-in while keeping the RSVP.
 
 ## Checks
 

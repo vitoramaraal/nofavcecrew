@@ -62,6 +62,7 @@ Initial roles:
 - Admin event check-in
 - Admin QR scanner for event check-in
 - Attendance CSV export and check-in undo
+- Realtime/fallback event RSVP sync
 - QR member verification route
 - PWA base
 

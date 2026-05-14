@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import MobileAppLayout from '../../components/members/MobileAppLayout'
 import PageTransition from '../../components/PageTransition'
 import { fetchMemberEvents, setEventRsvp } from '../../lib/events'
+import { getSupabase } from '../../lib/supabase'
 import { getCurrentMember, getStoredAccessCode } from '../../utils/auth'
 
 function Events() {
@@ -11,10 +12,11 @@ function Events() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const currentMember = getCurrentMember()
+  const currentMemberId = currentMember?.id || ''
   const accessCode = getStoredAccessCode()
 
-  async function loadEvents(showLoading = true) {
-    if (!currentMember?.id || !accessCode) {
+  const loadEvents = useCallback(async (showLoading = true) => {
+    if (!currentMemberId || !accessCode) {
       setError('Sessao de membro invalida.')
       setLoading(false)
       return
@@ -27,7 +29,7 @@ function Events() {
     setError('')
 
     try {
-      const data = await fetchMemberEvents(currentMember.id, accessCode)
+      const data = await fetchMemberEvents(currentMemberId, accessCode)
 
       setEvents(data)
     } catch (eventsError) {
@@ -36,17 +38,17 @@ function Events() {
     }
 
     setLoading(false)
-  }
+  }, [accessCode, currentMemberId])
 
   async function handleRsvp(eventId, nextStatus) {
-    if (busyEventId || !currentMember?.id || !accessCode) return
+    if (busyEventId || !currentMemberId || !accessCode) return
 
     setBusyEventId(eventId)
     setError('')
     setSuccess('')
 
     try {
-      await setEventRsvp(currentMember.id, accessCode, eventId, nextStatus)
+      await setEventRsvp(currentMemberId, accessCode, eventId, nextStatus)
       setSuccess(
         nextStatus === 'going'
           ? 'Presenca confirmada.'
@@ -62,43 +64,51 @@ function Events() {
   }
 
   useEffect(() => {
-    let isMounted = true
-
-    async function loadInitialEvents() {
-      if (!currentMember?.id || !accessCode) {
-        if (isMounted) {
-          setError('Sessao de membro invalida.')
-          setLoading(false)
-        }
-
-        return
-      }
-
-      try {
-        const data = await fetchMemberEvents(currentMember.id, accessCode)
-
-        if (!isMounted) return
-
-        setEvents(data)
-      } catch (eventsError) {
-        console.error(eventsError)
-
-        if (!isMounted) return
-
-        setError('Nao foi possivel carregar os eventos.')
-      }
-
-      if (isMounted) {
-        setLoading(false)
-      }
-    }
-
-    void loadInitialEvents()
+    const initialLoad = window.setTimeout(() => {
+      void loadEvents()
+    }, 0)
 
     return () => {
-      isMounted = false
+      window.clearTimeout(initialLoad)
     }
-  }, [accessCode, currentMember?.id])
+  }, [loadEvents])
+
+  useEffect(() => {
+    if (!currentMemberId || !accessCode) return undefined
+
+    const client = getSupabase()
+    let refreshTimer = 0
+
+    function scheduleRefresh() {
+      window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => {
+        void loadEvents(false)
+      }, 500)
+    }
+
+    const channel = client
+      .channel(`nofvce-events-${currentMemberId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'crew_events' },
+        scheduleRefresh,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'event_rsvps' },
+        scheduleRefresh,
+      )
+      .subscribe()
+    const fallbackInterval = window.setInterval(() => {
+      void loadEvents(false)
+    }, 30000)
+
+    return () => {
+      window.clearTimeout(refreshTimer)
+      window.clearInterval(fallbackInterval)
+      void client.removeChannel(channel)
+    }
+  }, [accessCode, currentMemberId, loadEvents])
 
   return (
     <MobileAppLayout title="Events">
@@ -162,10 +172,16 @@ function Events() {
 function EventCard({ event, busy, onRsvp }) {
   const isGoing = event.current_member_rsvp_status === 'going'
   const canRsvp = event.status === 'open'
+  const isCheckedIn = Boolean(event.current_member_checked_in_at)
+  const attendeeCount = Number(event.attendee_count || 0)
+  const checkedInCount = Number(event.checked_in_count || 0)
   const remainingSpots =
     event.capacity && event.attendee_count !== null
-      ? Math.max(event.capacity - Number(event.attendee_count || 0), 0)
+      ? Math.max(event.capacity - attendeeCount, 0)
       : null
+  const capacityPercent = event.capacity
+    ? Math.min(Math.round((attendeeCount / event.capacity) * 100), 100)
+    : 0
 
   return (
     <article className="rounded-[2rem] border border-white/5 bg-zinc-900/70 p-5 backdrop-blur-xl">
@@ -191,18 +207,48 @@ function EventCard({ event, busy, onRsvp }) {
         {event.description || 'Detalhes liberados somente para membros.'}
       </p>
 
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <Metric label="Confirmados" value={event.attendee_count || 0} />
-        <Metric label="Check-in" value={event.checked_in_count || 0} />
+      <div className="mt-5 grid grid-cols-3 gap-3">
+        <Metric label="Confirmados" value={attendeeCount} />
+        <Metric label="Check-in" value={checkedInCount} />
+        <Metric label="Vagas" value={event.capacity || 'Livre'} />
       </div>
 
-      {remainingSpots !== null && (
-        <p className="mt-4 text-xs uppercase tracking-[0.25em] text-white/25">
-          {remainingSpots} vagas restantes
-        </p>
+      {event.capacity && (
+        <div className="mt-4 rounded-2xl border border-white/5 bg-black/40 p-4">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-white/25">
+              Lotação
+            </p>
+
+            <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">
+              {remainingSpots} vagas restantes
+            </p>
+          </div>
+
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-white"
+              style={{ width: `${capacityPercent}%` }}
+            />
+          </div>
+        </div>
       )}
 
-      {event.current_member_checked_in_at && (
+      <div className="mt-5 rounded-2xl border border-white/5 bg-black/40 p-4">
+        <p className="text-[10px] uppercase tracking-[0.25em] text-white/25">
+          Sua presença
+        </p>
+
+        <p className="mt-2 text-sm leading-6 text-white/55">
+          {getMemberEventStatus({
+            canRsvp,
+            isCheckedIn,
+            isGoing,
+          })}
+        </p>
+      </div>
+
+      {isCheckedIn && (
         <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-4 text-sm text-emerald-300">
           Check-in confirmado em {formatEventDate(event.current_member_checked_in_at)}
         </div>
@@ -258,6 +304,13 @@ function getRsvpLabel({ busy, canRsvp, isGoing }) {
   if (!canRsvp) return 'RSVP fechado'
   if (isGoing) return 'Cancelar presenca'
   return 'Confirmar presenca'
+}
+
+function getMemberEventStatus({ canRsvp, isCheckedIn, isGoing }) {
+  if (isCheckedIn) return 'Você já fez check-in neste evento.'
+  if (isGoing) return 'Sua presença está confirmada. Mostre a carteirinha no check-in.'
+  if (canRsvp) return 'Confirme presença para entrar na lista do evento.'
+  return 'RSVP fechado para este evento.'
 }
 
 function formatEventDate(value) {
