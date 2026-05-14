@@ -23,6 +23,7 @@ MVP foundation completed:
 - Garage, events, drops, feed, profile and chat routes
 - Persistent internal chat table
 - Private feed with photos, captions, likes and comments
+- Admin moderation for feed posts, feed comments and chat messages
 - Event tables with member RSVP and admin check-in
 - Admin camera/manual scanner for event check-in from member card QR
 - QR verification route for member cards

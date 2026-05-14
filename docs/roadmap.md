@@ -54,6 +54,7 @@ Initial roles:
 - Persistent chat messages
 - Private feed MVP
 - Photo posts, captions, likes and comments
+- Admin feed/chat moderation panel
 - Event MVP
 - Member RSVP
 - Admin event check-in
@@ -65,7 +66,6 @@ Initial roles:
 
 - Realtime internal chat
 - Realtime private feed
-- Post deletion/moderation tools
 - Member-only access rules
 - Advanced member profiles
 - Car galleries

@@ -15,7 +15,7 @@ Field: `role`
 | --- | --- |
 | `founder` | Full admin access. Can see all applications, members, phones, access codes and member cards. Can approve/reject applications, delete applications, delete members and change member roles. |
 | `admin` | Full operational admin access. Same operational permissions as founder for the current MVP. |
-| `moderator` | Can see applications and members, including phones, access codes and member cards. Can approve applications, reject pending applications and create regular members through approval. Cannot delete members, delete applications or change roles. Future role for chat/feed moderation. |
+| `moderator` | Can see applications and members, including phones, access codes and member cards. Can approve applications, reject pending applications, create regular members through approval, and moderate chat/feed content. Cannot delete members, delete applications or change roles. |
 
 Important:
 
@@ -99,6 +99,14 @@ Member-side private content:
 | Feed | Active members can read posts, publish posts, like and comment after the same member/code validation. |
 | Events | Active members can see released events and confirm/cancel presence while RSVP is open. |
 | Profile | Active members can read/update only their own profile/card through the member UUID plus `access_code`. |
+
+Admin-side moderation:
+
+| Area | Behavior |
+| --- | --- |
+| Feed posts | Founder, admin and moderator users can see recent posts in `/admin` and delete inappropriate posts. |
+| Feed comments | Founder, admin and moderator users can see recent comments in `/admin` and delete inappropriate comments. |
+| Chat messages | Founder, admin and moderator users can see recent chat messages in `/admin` and delete inappropriate messages. |
 
 ## Applications
 

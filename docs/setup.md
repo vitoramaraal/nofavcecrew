@@ -120,6 +120,10 @@ and comments in `feed_comments`. Posts can include up to 4 images, a caption,
 likes and comments. Feed reads and writes validate the current member UUID plus
 the stored secret `access_code`.
 
+The admin panel includes a `Moderacao` tab for founder/admin/moderator users.
+It lists recent feed posts, feed comments and chat messages. Moderators can
+remove content without receiving member deletion or role-management access.
+
 ## Private Events
 
 The `/members/events` route lists active crew events from `crew_events`.

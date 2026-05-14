@@ -57,6 +57,9 @@ function Admin() {
   const [members, setMembers] = useState([])
   const [events, setEvents] = useState([])
   const [eventRsvps, setEventRsvps] = useState([])
+  const [feedPosts, setFeedPosts] = useState([])
+  const [feedComments, setFeedComments] = useState([])
+  const [chatMessages, setChatMessages] = useState([])
   const [adminRole, setAdminRole] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -85,6 +88,8 @@ function Admin() {
   const canReviewApplications = panelRoles.includes(adminRole)
   const canManageMembers = managerRoles.includes(adminRole)
   const canManageEvents = canManageMembers
+  const moderationCount =
+    feedPosts.length + feedComments.length + chatMessages.length
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -105,6 +110,9 @@ function Admin() {
         setMembers([])
         setEvents([])
         setEventRsvps([])
+        setFeedPosts([])
+        setFeedComments([])
+        setChatMessages([])
         setAdminRole('')
         setError(
           'Usuario autenticado, mas ainda nao liberado em public.admin_users.',
@@ -165,6 +173,75 @@ function Admin() {
 
       setEvents(eventsData || [])
       setEventRsvps(eventRsvpsData || [])
+
+      const [
+        { data: feedPostsData, error: feedPostsError },
+        { data: feedCommentsData, error: feedCommentsError },
+        { data: chatMessagesData, error: chatMessagesError },
+      ] = await Promise.all([
+        client
+          .from('feed_posts')
+          .select(
+            `
+              *,
+              members:member_id (
+                full_name,
+                member_number,
+                role,
+                car_model,
+                member_photo_url
+              )
+            `,
+          )
+          .order('created_at', { ascending: false })
+          .limit(50),
+        client
+          .from('feed_comments')
+          .select(
+            `
+              *,
+              members:member_id (
+                full_name,
+                member_number,
+                role
+              ),
+              feed_posts:post_id (
+                body
+              )
+            `,
+          )
+          .order('created_at', { ascending: false })
+          .limit(100),
+        client
+          .from('chat_messages')
+          .select(
+            `
+              *,
+              members:member_id (
+                full_name,
+                member_number,
+                role
+              )
+            `,
+          )
+          .order('created_at', { ascending: false })
+          .limit(100),
+      ])
+
+      if (feedPostsError || feedCommentsError || chatMessagesError) {
+        console.error(feedPostsError || feedCommentsError || chatMessagesError)
+        setFeedPosts([])
+        setFeedComments([])
+        setChatMessages([])
+        setError(
+          'Candidaturas, membros e eventos carregados. Moderação ainda precisa do schema atualizado.',
+        )
+        return
+      }
+
+      setFeedPosts(feedPostsData || [])
+      setFeedComments(feedCommentsData || [])
+      setChatMessages(chatMessagesData || [])
     } catch (loadError) {
       console.error(loadError)
       setError(
@@ -285,6 +362,9 @@ function Admin() {
       setMembers([])
       setEvents([])
       setEventRsvps([])
+      setFeedPosts([])
+      setFeedComments([])
+      setChatMessages([])
       setAdminRole('')
     } catch (logoutError) {
       console.error(logoutError)
@@ -743,6 +823,111 @@ function Admin() {
     setLoading(false)
   }
 
+  async function deleteFeedPost(post) {
+    if (!canReviewApplications) {
+      setError('Seu cargo nao permite moderar o feed.')
+      return
+    }
+
+    const confirmed = window.confirm('Deseja apagar este post do feed?')
+
+    if (!confirmed) return
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const client = getSupabase()
+      const { error: deleteError } = await client
+        .from('feed_posts')
+        .delete()
+        .eq('id', post.id)
+
+      if (deleteError) {
+        throw deleteError
+      }
+
+      setSuccess('Post apagado do feed.')
+      await loadData()
+    } catch (deleteError) {
+      console.error(deleteError)
+      setError('Nao foi possivel apagar o post.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function deleteFeedComment(comment) {
+    if (!canReviewApplications) {
+      setError('Seu cargo nao permite moderar comentarios.')
+      return
+    }
+
+    const confirmed = window.confirm('Deseja apagar este comentario?')
+
+    if (!confirmed) return
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const client = getSupabase()
+      const { error: deleteError } = await client
+        .from('feed_comments')
+        .delete()
+        .eq('id', comment.id)
+
+      if (deleteError) {
+        throw deleteError
+      }
+
+      setSuccess('Comentario apagado.')
+      await loadData()
+    } catch (deleteError) {
+      console.error(deleteError)
+      setError('Nao foi possivel apagar o comentario.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function deleteChatMessage(message) {
+    if (!canReviewApplications) {
+      setError('Seu cargo nao permite moderar o chat.')
+      return
+    }
+
+    const confirmed = window.confirm('Deseja apagar esta mensagem do chat?')
+
+    if (!confirmed) return
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const client = getSupabase()
+      const { error: deleteError } = await client
+        .from('chat_messages')
+        .delete()
+        .eq('id', message.id)
+
+      if (deleteError) {
+        throw deleteError
+      }
+
+      setSuccess('Mensagem apagada do chat.')
+      await loadData()
+    } catch (deleteError) {
+      console.error(deleteError)
+      setError('Nao foi possivel apagar a mensagem.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (checkingSession) {
     return (
       <main className="relative min-h-screen overflow-hidden bg-black text-white">
@@ -936,6 +1121,7 @@ function Admin() {
             applications: pending,
             members: members.length,
             events: events.length,
+            moderation: moderationCount,
           }}
           onChange={setActiveAdminSection}
         />
@@ -1152,6 +1338,18 @@ function Admin() {
           })}
             </div>
           </>
+        )}
+
+        {activeAdminSection === 'moderation' && (
+          <ModerationPanel
+            chatMessages={chatMessages}
+            feedComments={feedComments}
+            feedPosts={feedPosts}
+            loading={loading}
+            onDeleteChatMessage={deleteChatMessage}
+            onDeleteFeedComment={deleteFeedComment}
+            onDeleteFeedPost={deleteFeedPost}
+          />
         )}
 
         {activeAdminSection === 'applications' && (
@@ -1534,10 +1732,15 @@ function AdminSectionNav({ active, counts, onChange }) {
       label: 'Eventos',
       count: counts.events,
     },
+    {
+      id: 'moderation',
+      label: 'Moderacao',
+      count: counts.moderation,
+    },
   ]
 
   return (
-    <nav className="mt-8 grid gap-2 rounded-[2rem] border border-white/5 bg-zinc-900/60 p-2 backdrop-blur-xl md:grid-cols-3">
+    <nav className="mt-8 grid gap-2 rounded-[2rem] border border-white/5 bg-zinc-900/60 p-2 backdrop-blur-xl md:grid-cols-4">
       {items.map((item) => {
         const isActive = active === item.id
 
@@ -1564,6 +1767,188 @@ function AdminSectionNav({ active, counts, onChange }) {
         )
       })}
     </nav>
+  )
+}
+
+function ModerationPanel({
+  chatMessages,
+  feedComments,
+  feedPosts,
+  loading,
+  onDeleteChatMessage,
+  onDeleteFeedComment,
+  onDeleteFeedPost,
+}) {
+  return (
+    <>
+      <h2 className="mt-10 text-2xl font-black uppercase">Moderação</h2>
+
+      <div className="mt-6 grid gap-5 xl:grid-cols-3">
+        <ModerationColumn
+          emptyLabel="Nenhum post no feed."
+          loading={loading}
+          title="Feed Posts"
+        >
+          {feedPosts.map((post) => {
+            const images = Array.isArray(post.image_urls)
+              ? post.image_urls
+              : []
+
+            return (
+              <article
+                key={post.id}
+                className="rounded-[1.5rem] border border-white/5 bg-black/35 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black uppercase text-white">
+                      {post.members?.full_name || 'NoFvce'}
+                    </p>
+
+                    <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/30">
+                      {post.members?.member_number || 'NOFVCE'} /{' '}
+                      {formatAdminEventDate(post.created_at)}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => onDeleteFeedPost(post)}
+                    disabled={loading}
+                    className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.16em] text-red-300 disabled:opacity-35"
+                  >
+                    Apagar
+                  </button>
+                </div>
+
+                {post.body && (
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-white/55">
+                    {post.body}
+                  </p>
+                )}
+
+                {images.length > 0 && (
+                  <div className="mt-3 grid grid-cols-4 gap-2">
+                    {images.slice(0, 4).map((imageUrl) => (
+                      <img
+                        key={imageUrl}
+                        src={imageUrl}
+                        alt="Post"
+                        className="aspect-square rounded-xl object-cover"
+                      />
+                    ))}
+                  </div>
+                )}
+              </article>
+            )
+          })}
+        </ModerationColumn>
+
+        <ModerationColumn
+          emptyLabel="Nenhum comentario no feed."
+          loading={loading}
+          title="Comentários"
+        >
+          {feedComments.map((comment) => (
+            <article
+              key={comment.id}
+              className="rounded-[1.5rem] border border-white/5 bg-black/35 p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black uppercase text-white">
+                    {comment.members?.full_name || 'NoFvce'}
+                  </p>
+
+                  <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/30">
+                    {comment.members?.member_number || 'NOFVCE'} /{' '}
+                    {formatAdminEventDate(comment.created_at)}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => onDeleteFeedComment(comment)}
+                  disabled={loading}
+                  className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.16em] text-red-300 disabled:opacity-35"
+                >
+                  Apagar
+                </button>
+              </div>
+
+              <p className="mt-3 text-sm leading-6 text-white/55">
+                {comment.body}
+              </p>
+
+              {comment.feed_posts?.body && (
+                <p className="mt-3 rounded-2xl border border-white/5 bg-black/40 p-3 text-xs leading-5 text-white/30">
+                  Post: {comment.feed_posts.body}
+                </p>
+              )}
+            </article>
+          ))}
+        </ModerationColumn>
+
+        <ModerationColumn
+          emptyLabel="Nenhuma mensagem no chat."
+          loading={loading}
+          title="Chat"
+        >
+          {chatMessages.map((message) => (
+            <article
+              key={message.id}
+              className="rounded-[1.5rem] border border-white/5 bg-black/35 p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black uppercase text-white">
+                    {message.members?.full_name || 'NoFvce'}
+                  </p>
+
+                  <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/30">
+                    {message.members?.member_number || 'NOFVCE'} /{' '}
+                    {formatAdminEventDate(message.created_at)}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => onDeleteChatMessage(message)}
+                  disabled={loading}
+                  className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.16em] text-red-300 disabled:opacity-35"
+                >
+                  Apagar
+                </button>
+              </div>
+
+              <p className="mt-3 text-sm leading-6 text-white/55">
+                {message.body}
+              </p>
+            </article>
+          ))}
+        </ModerationColumn>
+      </div>
+    </>
+  )
+}
+
+function ModerationColumn({ children, emptyLabel, loading, title }) {
+  const hasItems = Array.isArray(children) ? children.length > 0 : Boolean(children)
+
+  return (
+    <section className="rounded-[2rem] border border-white/5 bg-zinc-900/60 p-5 backdrop-blur-xl">
+      <p className="text-[10px] uppercase tracking-[0.35em] text-white/25">
+        {title}
+      </p>
+
+      <div className="mt-5 space-y-3">
+        {!hasItems && !loading && (
+          <p className="text-sm text-white/35">{emptyLabel}</p>
+        )}
+
+        {children}
+      </div>
+    </section>
   )
 }
 
