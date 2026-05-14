@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 function EventCheckInScanner({
   events,
+  eventRsvps = [],
   members,
   disabled,
   canScan,
@@ -10,6 +11,7 @@ function EventCheckInScanner({
   const [selectedEventId, setSelectedEventId] = useState('')
   const [selectedMemberId, setSelectedMemberId] = useState('')
   const [manualCode, setManualCode] = useState('')
+  const [localCheckedInByEvent, setLocalCheckedInByEvent] = useState({})
   const [scanning, setScanning] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
@@ -24,9 +26,22 @@ function EventCheckInScanner({
   )
   const activeEventId = selectedEventId || availableEvents[0]?.id || ''
   const activeEvent = availableEvents.find((event) => event.id === activeEventId)
-  const activeMembers = [...members].sort((firstMember, secondMember) =>
-    (firstMember.full_name || '').localeCompare(secondMember.full_name || ''),
-  )
+  const checkedInMemberIds = new Set([
+    ...eventRsvps
+      .filter(
+        (rsvp) =>
+          rsvp.event_id === activeEventId &&
+          rsvp.status === 'going' &&
+          rsvp.checked_in_at,
+      )
+      .map((rsvp) => rsvp.member_id),
+    ...(localCheckedInByEvent[activeEventId] || []),
+  ])
+  const activeMembers = members
+    .filter((member) => !checkedInMemberIds.has(member.id))
+    .sort((firstMember, secondMember) =>
+      (firstMember.full_name || '').localeCompare(secondMember.full_name || ''),
+    )
   const canUseCamera =
     typeof window !== 'undefined' &&
     'BarcodeDetector' in window &&
@@ -152,12 +167,25 @@ function EventCheckInScanner({
       return
     }
 
+    if (checkedInMemberIds.has(member.id)) {
+      setError('')
+      setStatus(`${member.full_name} ja fez check-in neste evento.`)
+      return
+    }
+
     lastScanRef.current = memberId
     setError('')
     setStatus(`Validando ${member.full_name}...`)
 
     try {
       await onCheckIn(activeEvent, member)
+      setLocalCheckedInByEvent((current) => ({
+        ...current,
+        [activeEvent.id]: [
+          ...(current[activeEvent.id] || []).filter((id) => id !== member.id),
+          member.id,
+        ],
+      }))
       setManualCode('')
       setSelectedMemberId('')
       setStatus(`Check-in confirmado: ${member.full_name}.`)
@@ -270,7 +298,11 @@ function EventCheckInScanner({
                 disabled={disabled || activeMembers.length === 0}
                 className="min-w-0 rounded-full border border-white/5 bg-black/60 px-4 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-35"
               >
-                <option value="">Selecionar membro</option>
+                <option value="">
+                  {activeMembers.length === 0
+                    ? 'Todos ja fizeram check-in'
+                    : 'Selecionar membro'}
+                </option>
 
                 {activeMembers.map((member) => (
                   <option key={member.id} value={member.id}>

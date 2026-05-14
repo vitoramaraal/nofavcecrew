@@ -1019,6 +1019,7 @@ function Admin() {
 
             <EventCheckInScanner
               events={events}
+              eventRsvps={eventRsvps}
               members={members}
               disabled={loading}
               canScan={canReviewApplications}
