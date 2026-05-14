@@ -621,6 +621,8 @@ grant execute on function public.create_application(
   boolean
 ) to anon, authenticated;
 
+drop function if exists public.authenticate_member(text);
+
 create or replace function public.authenticate_member(secret_code text)
 returns table (
   id uuid,
@@ -670,6 +672,7 @@ $$;
 grant execute on function public.authenticate_member(text) to anon, authenticated;
 
 drop function if exists public.list_active_members();
+drop function if exists public.list_active_members(uuid, text);
 
 create or replace function public.list_active_members(
   active_member_id uuid,
@@ -735,6 +738,8 @@ $$;
 grant execute on function public.list_active_members(uuid, text)
   to anon, authenticated;
 
+drop function if exists public.get_member_profile(uuid);
+
 create or replace function public.get_member_profile(member_id uuid)
 returns table (
   id uuid,
@@ -784,6 +789,8 @@ as $$
 $$;
 
 grant execute on function public.get_member_profile(uuid) to authenticated;
+
+drop function if exists public.validate_member_session(uuid, text);
 
 create or replace function public.validate_member_session(
   active_member_id uuid,
@@ -839,6 +846,18 @@ $$;
 
 grant execute on function public.validate_member_session(uuid, text)
   to anon, authenticated;
+
+drop function if exists public.update_member_profile(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  jsonb
+);
 
 create or replace function public.update_member_profile(
   active_member_id uuid,
@@ -936,6 +955,8 @@ grant execute on function public.update_member_profile(
   jsonb
 ) to anon, authenticated;
 
+drop function if exists public.verify_member(uuid);
+
 create or replace function public.verify_member(member_id uuid)
 returns table (
   id uuid,
@@ -967,6 +988,7 @@ $$;
 grant execute on function public.verify_member(uuid) to anon, authenticated;
 
 drop function if exists public.list_chat_messages();
+drop function if exists public.list_chat_messages(uuid, text);
 
 create or replace function public.list_chat_messages(
   active_member_id uuid,
@@ -1053,6 +1075,8 @@ $$;
 
 grant execute on function public.create_chat_message(uuid, text, text)
   to anon, authenticated;
+
+drop function if exists public.list_feed_posts(uuid, text);
 
 create or replace function public.list_feed_posts(
   active_member_id uuid,
@@ -1146,6 +1170,8 @@ $$;
 grant execute on function public.list_feed_posts(uuid, text)
   to anon, authenticated;
 
+drop function if exists public.create_feed_post(uuid, text, text, jsonb);
+
 create or replace function public.create_feed_post(
   active_member_id uuid,
   secret_code text,
@@ -1195,6 +1221,8 @@ $$;
 
 grant execute on function public.create_feed_post(uuid, text, text, jsonb)
   to anon, authenticated;
+
+drop function if exists public.toggle_feed_like(uuid, text, uuid);
 
 create or replace function public.toggle_feed_like(
   active_member_id uuid,
@@ -1248,6 +1276,8 @@ $$;
 grant execute on function public.toggle_feed_like(uuid, text, uuid)
   to anon, authenticated;
 
+drop function if exists public.create_feed_comment(uuid, text, uuid, text);
+
 create or replace function public.create_feed_comment(
   active_member_id uuid,
   secret_code text,
@@ -1295,6 +1325,8 @@ $$;
 
 grant execute on function public.create_feed_comment(uuid, text, uuid, text)
   to anon, authenticated;
+
+drop function if exists public.list_member_events(uuid, text);
 
 create or replace function public.list_member_events(
   active_member_id uuid,
@@ -1361,6 +1393,8 @@ $$;
 
 grant execute on function public.list_member_events(uuid, text)
   to anon, authenticated;
+
+drop function if exists public.set_event_rsvp(uuid, text, uuid, text);
 
 create or replace function public.set_event_rsvp(
   active_member_id uuid,
@@ -1454,6 +1488,8 @@ $$;
 
 grant execute on function public.set_event_rsvp(uuid, text, uuid, text)
   to anon, authenticated;
+
+drop function if exists public.check_in_event_member(uuid, uuid);
 
 create or replace function public.check_in_event_member(
   target_event_id uuid,
