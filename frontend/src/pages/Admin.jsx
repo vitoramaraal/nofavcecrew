@@ -62,6 +62,8 @@ function Admin() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [activeAdminSection, setActiveAdminSection] = useState('applications')
+  const [applicationStatusFilter, setApplicationStatusFilter] =
+    useState('pending')
   const [expandedMemberId, setExpandedMemberId] = useState('')
   const [eventForm, setEventForm] = useState({
     title: '',
@@ -76,9 +78,10 @@ function Admin() {
   const pending = applications.filter((item) => item.status === 'pending').length
   const approved = applications.filter((item) => item.status === 'approved').length
   const rejected = applications.filter((item) => item.status === 'rejected').length
-  const pendingApplications = applications.filter(
-    (item) => item.status === 'pending',
-  )
+  const visibleApplications =
+    applicationStatusFilter === 'all'
+      ? applications
+      : applications.filter((item) => item.status === applicationStatusFilter)
   const canReviewApplications = panelRoles.includes(adminRole)
   const canManageMembers = managerRoles.includes(adminRole)
   const canManageEvents = canManageMembers
@@ -713,14 +716,29 @@ function Admin() {
       return
     }
 
+    let deletedLinkedApplication = false
+
     if (member.application_id) {
-      await client
+      const { error: applicationDeleteError } = await client
         .from('applications')
-        .update({ status: 'rejected' })
+        .delete()
         .eq('id', member.application_id)
+
+      if (applicationDeleteError) {
+        console.error(applicationDeleteError)
+        setError('Membro apagado, mas erro ao apagar candidatura vinculada.')
+        setLoading(false)
+        return
+      }
+
+      deletedLinkedApplication = true
     }
 
-    setSuccess('Membro apagado com sucesso.')
+    setSuccess(
+      deletedLinkedApplication
+        ? 'Membro e candidatura vinculada apagados com sucesso.'
+        : 'Membro apagado com sucesso.',
+    )
     await loadData()
     setLoading(false)
   }
@@ -856,10 +874,48 @@ function Admin() {
         </h1>
 
         <div className="mt-8 grid gap-4 md:grid-cols-4">
-          <StatCard label="Pendentes" value={pending} />
-          <StatCard label="Aprovadas" value={approved} />
-          <StatCard label="Rejeitadas" value={rejected} />
-          <StatCard label="Membros" value={members.length} />
+          <StatCard
+            label="Pendentes"
+            value={pending}
+            active={
+              activeAdminSection === 'applications' &&
+              applicationStatusFilter === 'pending'
+            }
+            onClick={() => {
+              setActiveAdminSection('applications')
+              setApplicationStatusFilter('pending')
+            }}
+          />
+          <StatCard
+            label="Aprovadas"
+            value={approved}
+            active={
+              activeAdminSection === 'applications' &&
+              applicationStatusFilter === 'approved'
+            }
+            onClick={() => {
+              setActiveAdminSection('applications')
+              setApplicationStatusFilter('approved')
+            }}
+          />
+          <StatCard
+            label="Rejeitadas"
+            value={rejected}
+            active={
+              activeAdminSection === 'applications' &&
+              applicationStatusFilter === 'rejected'
+            }
+            onClick={() => {
+              setActiveAdminSection('applications')
+              setApplicationStatusFilter('rejected')
+            }}
+          />
+          <StatCard
+            label="Membros"
+            value={members.length}
+            active={activeAdminSection === 'members'}
+            onClick={() => setActiveAdminSection('members')}
+          />
         </div>
 
         {success && (
@@ -1100,17 +1156,28 @@ function Admin() {
         {activeAdminSection === 'applications' && (
           <>
             <h2 className="mt-10 text-2xl font-black uppercase">
-              Candidaturas pendentes
+              Candidaturas
             </h2>
 
+            <ApplicationStatusFilter
+              active={applicationStatusFilter}
+              counts={{
+                all: applications.length,
+                pending,
+                approved,
+                rejected,
+              }}
+              onChange={setApplicationStatusFilter}
+            />
+
             <div className="mt-6 grid gap-5">
-              {pendingApplications.length === 0 && !loading && (
+              {visibleApplications.length === 0 && !loading && (
                 <div className="rounded-[2rem] border border-white/5 bg-zinc-900/60 p-6 text-sm text-white/40">
-                  Nenhuma candidatura pendente.
+                  Nenhuma candidatura nessa lista.
                 </div>
               )}
 
-              {pendingApplications.map((item) => (
+              {visibleApplications.map((item) => (
                 <article
                   key={item.id}
                   className="grid gap-5 rounded-[2rem] border border-white/5 bg-zinc-900/60 p-5 backdrop-blur-xl md:grid-cols-[220px_1fr]"
@@ -1186,7 +1253,7 @@ function Admin() {
                       <button
                         type="button"
                         onClick={() => approveApplication(item)}
-                        disabled={loading}
+                        disabled={loading || item.status === 'approved'}
                         className="rounded-full border border-white/10 bg-white/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-white/50 transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-30"
                       >
                         Aprovar
@@ -1195,7 +1262,11 @@ function Admin() {
                       <button
                         type="button"
                         onClick={() => rejectApplication(item)}
-                        disabled={loading}
+                        disabled={
+                          loading ||
+                          item.status === 'rejected' ||
+                          (!canManageMembers && item.status === 'approved')
+                        }
                         className="rounded-full border border-white/10 bg-black/40 px-4 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-white/35 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
                       >
                         Rejeitar
@@ -1371,14 +1442,76 @@ function Admin() {
   )
 }
 
-function StatCard({ label, value }) {
+function StatCard({ active = false, label, value, onClick }) {
+  const Element = onClick ? 'button' : 'div'
+
   return (
-    <div className="rounded-[2rem] border border-white/5 bg-zinc-900/60 p-5 backdrop-blur-xl">
-      <p className="text-[10px] uppercase tracking-[0.35em] text-white/25">
+    <Element
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`rounded-[2rem] border p-5 text-left backdrop-blur-xl transition ${
+        active
+          ? 'border-white/15 bg-white text-black'
+          : 'border-white/5 bg-zinc-900/60 text-white hover:border-white/10'
+      } ${onClick ? 'cursor-pointer' : ''}`}
+    >
+      <p
+        className={`text-[10px] uppercase tracking-[0.35em] ${
+          active ? 'text-black/45' : 'text-white/25'
+        }`}
+      >
         {label}
       </p>
 
       <h3 className="mt-3 text-4xl font-black">{value}</h3>
+    </Element>
+  )
+}
+
+function ApplicationStatusFilter({ active, counts, onChange }) {
+  const filters = [
+    {
+      id: 'pending',
+      label: 'Pendentes',
+      count: counts.pending,
+    },
+    {
+      id: 'approved',
+      label: 'Aprovadas',
+      count: counts.approved,
+    },
+    {
+      id: 'rejected',
+      label: 'Rejeitadas',
+      count: counts.rejected,
+    },
+    {
+      id: 'all',
+      label: 'Todas',
+      count: counts.all,
+    },
+  ]
+
+  return (
+    <div className="mt-5 flex flex-wrap gap-2">
+      {filters.map((filter) => {
+        const isActive = active === filter.id
+
+        return (
+          <button
+            key={filter.id}
+            type="button"
+            onClick={() => onChange(filter.id)}
+            className={`rounded-full border px-4 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition ${
+              isActive
+                ? 'border-white bg-white text-black'
+                : 'border-white/10 bg-black/30 text-white/35 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            {filter.label} / {filter.count}
+          </button>
+        )
+      })}
     </div>
   )
 }
