@@ -21,6 +21,7 @@ MVP foundation completed:
 - Member session validation against Supabase on protected routes
 - Editable member profile with bio, setup, specs, mods and gallery
 - Garage, events, drops, feed, profile and chat routes
+- Member drops catalog preview with sizes and release status
 - Persistent internal chat table
 - Realtime/fallback sync for internal chat
 - Private feed with photos, captions, likes and comments
@@ -48,7 +49,7 @@ MVP foundation completed:
 ## Medium Priority
 
 - Push notifications for approval, events, drops and posts.
-- Dynamic drops catalog with stock and sizes.
+- Persisted drops catalog with stock, sizes and checkout.
 - Public NoFvce page with manifesto, media and apply.
 
 ## Future

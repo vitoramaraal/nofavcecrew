@@ -65,6 +65,7 @@ Initial roles:
 - Realtime/fallback event RSVP sync
 - QR member verification route
 - PWA base
+- Drops preview catalog with sizes/status
 
 ## Phase 2 - Community
 
@@ -81,8 +82,8 @@ Initial roles:
 
 ## Phase 4 - Lifestyle
 
-- Drops catalog
-- Sizes and stock
+- Persisted drops catalog
+- Sizes, stock and checkout
 - Wallpapers
 - Exclusive content
 - Partner benefits

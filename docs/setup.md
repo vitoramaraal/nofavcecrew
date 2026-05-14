@@ -137,6 +137,12 @@ manual `/verify/...` or UUID fallback for browsers that do not support camera QR
 detection. Admins can export the event presence list as a CSV and undo a
 mistaken check-in while keeping the RSVP.
 
+## Drops
+
+The `/members/drops` route currently shows an internal preview catalog for
+member-only merch. Items can display release status, stock notes, price labels
+and selectable sizes. Checkout and persisted stock are future steps.
+
 ## Checks
 
 ```bash
